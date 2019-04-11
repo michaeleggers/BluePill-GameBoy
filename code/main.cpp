@@ -31,77 +31,7 @@ SOFTWARE.
 #include <stddef.h>
 #include <stdio.h>
 #include "stm32f10x.h"
-
-#ifdef USE_STM3210B_EVAL
- #include "stm3210b_eval.h"
- #include "stm3210b_eval_lcd.h"
- #define USE_BOARD
- #define USE_LED
-#elif defined USE_STM3210E_EVAL
- #include "stm3210e_eval.h"
- #include "stm3210e_eval_lcd.h"
- #define USE_BOARD
- #define USE_LED
-#elif defined USE_STM3210C_EVAL
- #include "stm3210c_eval.h"
- #include "stm3210c_eval_lcd.h"
- #include "stm3210c_eval_i2c_ee.h"
- #define USE_BOARD
- #define USE_LED
- #define USE_SEE
-#elif defined USE_STM32100B_EVAL
- #include "stm32100b_eval.h"
- #include "stm32100b_eval_lcd.h"
- #define USE_BOARD
- #define USE_LED
-#elif defined USE_STM32100E_EVAL
- #include "stm32100e_eval.h"
- #include "stm32100e_eval_lcd.h"
- #include "stm32100e_eval_i2c_ee.h"
- #define USE_BOARD
- #define USE_LED
- #define USE_SEE
-#elif defined USE_STM32_DISCOVERY
- #include "STM32vldiscovery.h"
-#elif defined USE_IAR_STM32F103ZE
- #include "board.h"
- #define USE_LED
-#elif defined USE_KEIL_MCBSTM32
- #include "board.h"
- #define USE_LED
-#endif
-
-
-/* Private typedef */
-/* Private define  */
-#ifdef USE_STM3210B_EVAL
-  #define MESSAGE1   "STM32 Medium Density"
-  #define MESSAGE2   " Device running on  "
-  #define MESSAGE3   "   STM3210B-EVAL    "
-  #define MESSAGE4   "                    "
-#elif defined USE_STM3210E_EVAL
-  #define MESSAGE1   " STM32 High Density "
-  #define MESSAGE2   " Device running on  "
-  #define MESSAGE3   "   STM3210E-EVAL    "
-  #define MESSAGE4   "                    "
-#elif defined USE_STM3210C_EVAL
-  #define MESSAGE1   " STM32 Connectivity "
-  #define MESSAGE2   " Line Device running"
-  #define MESSAGE3   " on STM3210C-EVAL   "
-  #define MESSAGE4   "                    "
-#elif defined USE_STM32100B_EVAL
-  #define MESSAGE1   "STM32 Medium Density"
-  #define MESSAGE2   " Value Line Device  "
-  #define MESSAGE3   "    running on      "
-  #define MESSAGE4   "   STM32100B-EVAL   "
-#elif defined USE_STM32100E_EVAL
-  #define MESSAGE1   " STM32 High Density "
-  #define MESSAGE2   " Value Line Device  "
-  #define MESSAGE3   "    running on      "
-  #define MESSAGE4   "   STM32100E-EVAL   "
-#endif
-  #define MESSAGE5   " program built with "
-  #define MESSAGE6   " Atollic TrueSTUDIO "
+#include "ili9341.h"
 
 #define LCD_CS     GPIO_PIN_2
 #define LCD_RST    GPIO_PIN_1
@@ -113,11 +43,38 @@ SOFTWARE.
 
 /* Private macro */
 /* Private variables */
- USART_InitTypeDef USART_InitStructure;
+USART_InitTypeDef USART_InitStructure;
 
 /* Private function prototypes */
 /* Private functions */
 
+//static const uint8_t ili9341_InitCmdList[] = {
+//  0xEF, 3, 0x03, 0x80, 0x02,
+//  0xCF, 3, 0x00, 0xC1, 0x30,
+//  0xED, 4, 0x64, 0x03, 0x12, 0x81,
+//  0xE8, 3, 0x85, 0x00, 0x78,
+//  0xCB, 5, 0x39, 0x2C, 0x00, 0x34, 0x02,
+//  0xF7, 1, 0x20,
+//  0xEA, 2, 0x00, 0x00,
+//  ILI9341_PWCTR1  , 1, 0x23,             // Power control VRH[5:0]
+//  ILI9341_PWCTR2  , 1, 0x10,             // Power control SAP[2:0];BT[3:0]
+//  ILI9341_VMCTR1  , 2, 0x3e, 0x28,       // VCM control
+//  ILI9341_VMCTR2  , 1, 0x86,             // VCM control2
+//  ILI9341_MADCTL  , 1, 0x48,             // Memory Access Control
+//  ILI9341_VSCRSADD, 1, 0x00,             // Vertical scroll zero
+//  ILI9341_PIXFMT  , 1, 0x55,
+//  ILI9341_FRMCTR1 , 2, 0x00, 0x18,
+//  ILI9341_DFUNCTR , 3, 0x08, 0x82, 0x27, // Display Function Control
+//  0xF2, 1, 0x00,                         // 3Gamma Function Disable
+//  ILI9341_GAMMASET , 1, 0x01,             // Gamma curve selected
+//  ILI9341_GMCTRP1 , 15, 0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, // Set Gamma
+//    0x4E, 0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
+//  ILI9341_GMCTRN1 , 15, 0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, // Set Gamma
+//    0x31, 0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
+//  ILI9341_SLPOUT  , 0x80,                // Exit Sleep
+//  ILI9341_DISPON  , 0x80,                // Display on
+//  0x00                                   // End of list
+//};
 
 /**
 **===========================================================================
@@ -127,11 +84,17 @@ SOFTWARE.
 **===========================================================================
 */
 
+void lcdEnable();
+void lcdReset();
+
+volatile uint16_t LCD_WIDTH;
+volatile uint16_t LCD_HEIGHT;
+
 void __attribute__((optimize("O0"))) delay_cycles(uint32_t cyc) {
-  uint32_t d_i;
-  for (d_i = 0; d_i < cyc; ++d_i) {
-    asm("NOP");
-  }
+    uint32_t d_i;
+    for (d_i = 0; d_i < cyc; ++d_i) {
+        asm("NOP");
+    }
 }
 
 void delayMs(int n)
@@ -140,34 +103,314 @@ void delayMs(int n)
 	{
 		for (int i=0; i < 3195; i++)
 		{
-
+            
 		}
 	}
 }
 
-inline void SPI1_writeData(uint8_t data)
+#define CS_HIGH   (GPIOA->ODR |= GPIO_ODR_ODR2)
+#define CS_LOW    (GPIOA->ODR &= ~GPIO_ODR_ODR2)
+#define DC_HIGH   (GPIOB->ODR |=  GPIO_ODR_ODR0)
+#define DC_LOW    (GPIOA->ODR &= ~GPIO_ODR_ODR0)
+#define RST_HIGH  (GPIOA->ODR |= GPIO_ODR_ODR1)
+#define RST_LOW   (GPIOA->ODR &= ~GPIO_ODR_ODR1)
+
+void SPI1_init()
 {
- while (!(SPI1->SR & SPI_SR_TXE)) {} // wait until TX empty
- GPIOA->ODR &= ~GPIO_ODR_ODR2; // assert CS
- *(uint8_t *)&SPI1->DR = data; // cast is necessary cause DR is uint16_t
- while (!(SPI1->SR & SPI_SR_TXE)) {}
- GPIOA->ODR |= GPIO_ODR_ODR2; // deassert CS
+	// reset
+	SPI1->CR1 &= ~SPI_CR1_SPE; // enable SPI
+    //	RCC->APB2ENR |= RCC_APB2RSTR_SPI1RST;
+    //	RCC->APB2ENR &= ~(RCC_APB2RSTR_SPI1RST);
+	// configure and enable
+	SPI1->CR1 &= ~(SPI_CR1_CPOL|SPI_CR1_CPHA); // pol high, capture on second edge
+	SPI1->CR1 &= ~(SPI_CR1_BR);
+	SPI1->CR1 &= ~(SPI_CR1_DFF|SPI_CR1_LSBFIRST);
+	SPI1->CR1 |= (SPI_CR1_MSTR|SPI_CR1_SSI|SPI_CR1_SSM);
+//	SPI1->CR2 |= SPI_CR2_SSOE;
+	SPI1->CR1 |= SPI_CR1_SPE;
+	// 8Bit, MSB and BR=2 _should_ be set by default
 }
 
-inline void SPI1_writeCmd(uint8_t cmd)
+inline static uint8_t SPI1_write(uint8_t data)
 {
-   while ((SPI1->SR & SPI_SR_BSY)) {};
-   GPIOA->ODR &= ~GPIO_ODR_ODR0;
-   SPI1_writeData(cmd);
-   while ((SPI1->SR & SPI_SR_BSY)) {};
-   GPIOB->ODR |=  GPIO_ODR_ODR0;
- }
+	while (!(SPI1->SR & SPI_SR_TXE)) {}
+    *((volatile uint8_t*)&SPI1->DR) = data; // cast is necessary cause DR is uint16_t
+    while (SPI1->SR & SPI_SR_BSY) {}
+    return SPI1->DR;
+}
+
+inline static void SPI1_writeData(uint8_t data)
+{
+	DC_HIGH;
+	delayMs(1);
+	CS_LOW;
+	SPI1_write(data);
+    CS_HIGH;
+}
+
+inline static void SPI1_writeData16(uint16_t data)
+{
+	CS_LOW;
+	data = (((data & 0x00FF) << 8) | ((data & 0xFF00) >> 8));
+	*(uint16_t*)&(SPI1->DR) = data;
+	while (!(SPI1->SR & SPI_SR_TXE)) {}
+	CS_HIGH;
+}
+
+inline static void SPI1_writeCmd(uint8_t cmd)
+{
+    CS_LOW;
+    DC_LOW;
+    delayMs(5);
+    SPI1_write(cmd);
+    CS_HIGH;
+}
+
+
+inline static void SPI1_transmit(uint8_t *buffer, uint8_t count)
+{
+	CS_LOW;
+
+//	buffer += count;
+	while (count)
+	{
+		*((uint8_t *)&SPI1->DR) = *buffer;
+		while (!(SPI1->SR & SPI_SR_TXE)) {}
+		buffer++;
+		count--;
+		delayMs(1);
+	}
+	CS_HIGH;
+}
+
+void ili9341_set_rotation(uint8_t rotation)
+{
+	SPI1_writeCmd(0x36);
+	delayMs(10);
+
+	switch(rotation)
+	{
+	case 0:
+		SPI1_writeData(0x40|0x08);
+		LCD_WIDTH = 240;
+		LCD_HEIGHT = 320;
+		break;
+	case 1:
+		SPI1_writeData(0x20|0x08);
+		LCD_WIDTH  = 320;
+		LCD_HEIGHT = 240;
+		break;
+	case 2:
+		SPI1_writeData(0x80|0x08);
+		LCD_WIDTH  = 240;
+		LCD_HEIGHT = 320;
+		break;
+	case 3:
+		SPI1_writeData(0x40|0x80|0x20|0x08);
+		LCD_WIDTH  = 320;
+		LCD_HEIGHT = 240;
+		break;
+	default:
+		//EXIT IF SCREEN ROTATION NOT VALID!
+		break;
+	}
+}
+
+void ili9341_begin()
+{
+	lcdEnable();
+	SPI1_init();
+	lcdReset();
+
+	SPI1_writeCmd(0x01);
+	delayMs(5);
+	SPI1_writeCmd(ILI9341_DISPOFF);
+    SPI1_writeCmd(0xEF);
+    SPI1_writeData(0x03);
+    SPI1_writeData(0x80);
+    SPI1_writeData(0x02);
+
+    SPI1_writeCmd(0xCF);
+    SPI1_writeData(0x00);
+    SPI1_writeData(0xC1);
+    SPI1_writeData(0x30);
+
+    SPI1_writeCmd(0xED);
+    SPI1_writeData(0x64);
+    SPI1_writeData(0x03);
+    SPI1_writeData(0x12);
+    SPI1_writeData(0x81);
+
+    SPI1_writeCmd(0xE8);
+    SPI1_writeData(0x85);
+    SPI1_writeData(0x00);
+    SPI1_writeData(0x78);
+
+    SPI1_writeCmd(0xCB);
+    SPI1_writeData(0x39);
+    SPI1_writeData(0x2C);
+    SPI1_writeData(0x00);
+    SPI1_writeData(0x34);
+    SPI1_writeData(0x02);
+
+    SPI1_writeCmd(0xF7);
+    SPI1_writeData(0x20);
+
+    SPI1_writeCmd(0xEA);
+    SPI1_writeData(0x00);
+    SPI1_writeData(0x00);
+
+    SPI1_writeCmd(ILI9341_PWCTR1);
+    SPI1_writeData(0x23);
+
+    SPI1_writeCmd(ILI9341_PWCTR2);
+    SPI1_writeData(0x10);
+
+    SPI1_writeCmd(ILI9341_VMCTR1);
+    SPI1_writeData(0x3E);
+    SPI1_writeData(0x28);
+
+    SPI1_writeCmd(ILI9341_VMCTR2);
+    SPI1_writeData(0x86);
+
+    SPI1_writeCmd(ILI9341_MADCTL);
+    SPI1_writeData(0x48);
+
+    SPI1_writeCmd(ILI9341_PIXFMT);
+    SPI1_writeData(0x55);
+
+    SPI1_writeCmd(ILI9341_VSCRSADD);
+    SPI1_writeData(0x00);
+
+    SPI1_writeCmd(ILI9341_FRMCTR1);
+    SPI1_writeData(0x00);
+    SPI1_writeData(0x18);
+
+    SPI1_writeCmd(ILI9341_DFUNCTR);
+    SPI1_writeData(0x08);
+    SPI1_writeData(0x82);
+    SPI1_writeData(0x27);
+
+    SPI1_writeCmd(0xF2);
+    SPI1_writeData(0x00);
+
+    SPI1_writeCmd(ILI9341_GAMMASET);
+    SPI1_writeData(0x01);
+
+    SPI1_writeCmd(ILI9341_GMCTRP1);
+    SPI1_writeData(0x0F);
+    SPI1_writeData(0x31);
+    SPI1_writeData(0x2B);
+    SPI1_writeData(0x0C);
+    SPI1_writeData(0x0E);
+    SPI1_writeData(0x08);
+    SPI1_writeData(0x4E);
+    SPI1_writeData(0xF1);
+    SPI1_writeData(0x37);
+    SPI1_writeData(0x07);
+    SPI1_writeData(0x10);
+    SPI1_writeData(0x03);
+    SPI1_writeData(0x0E);
+    SPI1_writeData(0x09);
+    SPI1_writeData(0x00);
+
+    SPI1_writeCmd(ILI9341_GMCTRN1);
+    SPI1_writeData(0x00);
+    SPI1_writeData(0x0E);
+    SPI1_writeData(0x14);
+    SPI1_writeData(0x03);
+    SPI1_writeData(0x11);
+    SPI1_writeData(0x07);
+    SPI1_writeData(0x31);
+    SPI1_writeData(0xC1);
+    SPI1_writeData(0x48);
+    SPI1_writeData(0x08);
+    SPI1_writeData(0x0F);
+    SPI1_writeData(0x0C);
+    SPI1_writeData(0x31);
+    SPI1_writeData(0x36);
+    SPI1_writeData(0x0F);
+
+    SPI1_writeCmd(ILI9341_SLPOUT);
+    delayMs(120);
+
+    SPI1_writeCmd(ILI9341_DISPON);
+    delayMs(120);
+
+    SPI1_writeCmd(ILI9341_RAMWR);
+    delayMs(120);
+
+    SPI1_writeCmd(ILI9341_NORON);
+    delayMs(400);
+
+    ili9341_set_rotation(1);
+}
+
+void ili9341_set_addr_window(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
+{
+    unsigned char x1_h = x >> 8;
+    unsigned char x1_l = x;
+    unsigned char x2_h = (x + width) >> 8;
+    unsigned char x2_l = (x + width);
+    unsigned char y1_h = y >> 8;
+    unsigned char y1_l = y;
+    unsigned char y2_h = (y + height) >> 8;
+    unsigned char y2_l = (y + height);
+    
+    // column address set
+    SPI1_writeCmd(ILI9341_CASET);
+    SPI1_writeData(x1_h);
+    SPI1_writeData(x1_l);
+    SPI1_writeData(x2_h);
+    SPI1_writeData(x2_l);
+
+    // page address set
+    SPI1_writeCmd(ILI9341_PASET);
+    SPI1_writeData(y1_h);
+    SPI1_writeData(y1_l);
+    SPI1_writeData(y2_h);
+    SPI1_writeData(y2_l);
+
+    // memory write
+    SPI1_writeCmd(ILI9341_RAMWR);
+
+}
+
+void ili9341_fill_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color)
+{
+    ili9341_set_addr_window(x, y, width, height);
+    delayMs(2);
+    uint8_t colorH = color >> 8;
+    uint8_t colorL = color;
+
+    for (int i = 0;
+         i < width*height;
+         ++i)
+    {
+    	SPI1_writeData(colorH);
+    	SPI1_writeData(colorL);;
+    }
+}
+
+void lcdReset()
+{
+	RST_LOW;
+	delayMs(200);
+	CS_LOW;
+	delayMs(200);
+	RST_HIGH;
+}
+
+void lcdEnable()
+{
+	RST_HIGH;
+}
 
 int main(void)
 {
 	// clock enable for SPI1, GPIOA and AF
 	RCC->APB2ENR |= (RCC_APB2ENR_AFIOEN|RCC_APB2ENR_IOPAEN|RCC_APB2ENR_SPI1EN);
-
+    
 	// GPIO DC
 	GPIOA->CRL |= GPIO_CRL_MODE0_1;
 	GPIOA->CRL &= ~( GPIO_CRL_MODE0_0|GPIO_CRL_CNF0 );
@@ -177,7 +420,7 @@ int main(void)
 	// GPIO CS
 	GPIOA->CRL |= GPIO_CRL_MODE2_1;
 	GPIOA->CRL &= ~( GPIO_CRL_MODE2_0|GPIO_CRL_CNF2 );
-
+    
 	// SPI1 SCK, MOSI
 	GPIOA->CRL |= (GPIO_CRL_MODE5|GPIO_CRL_MODE7); // both to output PP
 	GPIOA->CRL |= (GPIO_CRL_CNF5_1|GPIO_CRL_CNF7_1);
@@ -185,149 +428,17 @@ int main(void)
 	// SPI1 MISO
 	GPIOA->CRL &= ~( GPIO_CRL_MODE6|GPIO_CRL_CNF6_1 );
 	GPIOA->CRL |= GPIO_CRL_CNF6_0;
-
-
-	/////////////////////////////////////////////////////////
-
-	// SPI1 peripheral setup
-
-	// reset
-	SPI1->CR1 &= ~SPI_CR1_SPE; // enable SPI
-//	RCC->APB2ENR |= RCC_APB2RSTR_SPI1RST;
-//	RCC->APB2ENR &= ~(RCC_APB2RSTR_SPI1RST);
-	// configure and enable
-	SPI1->CR1 |= (SPI_CR1_CPOL|SPI_CR1_CPHA); // pol high, capture on second edge
-	SPI1->CR1 |= (SPI_CR1_MSTR|SPI_CR1_SSI|SPI_CR1_SSM);
-	SPI1->CR1 |= SPI_CR1_SPE;
-	// 8Bit, MSB and BR=2 _should_ be set by default
-
+    
 	////////////////////////////////////////////////////////////
 
-	// Display reset sequence (where do ppl have this from????)
-	GPIOA->ODR |= GPIO_ODR_ODR2; // CS high
-	GPIOA->ODR |= GPIO_ODR_ODR0; // DC high
-	GPIOA->ODR |= GPIO_ODR_ODR5; // sck set
-	GPIOA->ODR &= ~GPIO_ODR_ODR1; // rst low
-	delayMs(150);
-	GPIOA->ODR |= GPIO_ODR_ODR1; // rst high
-	delayMs(150);
-
-	/////////////////////////////////////////////////////////
-
 	// Init LCD
-	SPI1_writeCmd(0x01);
-	delayMs(1000);
-	SPI1_writeCmd(0x3A);
-	SPI1_writeData(0x55);
-	SPI1_writeCmd(0x11);
-	delayMs(120);
-	SPI1_writeCmd(0x29);
-
-
-  int i = 0;
-
-  /**
-  *  IMPORTANT NOTE!
-  *  The symbol VECT_TAB_SRAM needs to be defined when building the project
-  *  if code has been located to RAM and interrupts are used. 
-  *  Otherwise the interrupt table located in flash will be used.
-  *  See also the <system_*.c> file and how the SystemInit() function updates 
-  *  SCB->VTOR register.  
-  *  E.g.  SCB->VTOR = 0x20000000;  
-  */
-
-#ifdef USE_LED
-  /* Initialize LEDs */
-  STM_EVAL_LEDInit(LED1);
-  STM_EVAL_LEDInit(LED2);
-  STM_EVAL_LEDInit(LED3);
-  STM_EVAL_LEDInit(LED4);
-
-  /* Turn on LEDs */
-  STM_EVAL_LEDOn(LED1);
-  STM_EVAL_LEDOn(LED2);
-  STM_EVAL_LEDOn(LED3);
-  STM_EVAL_LEDOn(LED4);
-
-#elif defined USE_STM32_DISCOVERY
-  STM32vldiscovery_LEDInit(LED3);
-  STM32vldiscovery_LEDInit(LED4);
-  STM32vldiscovery_PBInit(BUTTON_USER, BUTTON_MODE_GPIO);
-  STM32vldiscovery_LEDOff(LED3);
-  STM32vldiscovery_LEDOff(LED4);
-#endif
-
-#ifdef USE_BOARD
-  /* Initialize the LCD */
-#ifdef USE_STM3210B_EVAL
-  STM3210B_LCD_Init();
-#elif defined USE_STM3210E_EVAL
-  STM3210E_LCD_Init();
-#elif defined USE_STM3210C_EVAL
-  STM3210C_LCD_Init();
-#elif defined USE_STM32100B_EVAL
-  STM32100B_LCD_Init();
-#endif
-
-  /* Display message on STM3210X-EVAL LCD */
-  /* Clear the LCD */
-  LCD_Clear(White);
-
-  /* Set the LCD Back Color */
-  LCD_SetBackColor(Blue);
-  /* Set the LCD Text Color */
-  LCD_SetTextColor(White);
-  LCD_DisplayStringLine(Line0, (uint8_t *)MESSAGE1);
-  LCD_DisplayStringLine(Line1, (uint8_t *)MESSAGE2);
-  LCD_DisplayStringLine(Line2, (uint8_t *)MESSAGE3);
-  LCD_DisplayStringLine(Line3, (uint8_t *)MESSAGE4);
-  LCD_DisplayStringLine(Line4, (uint8_t *)MESSAGE5);
-  LCD_DisplayStringLine(Line5, (uint8_t *)MESSAGE6);
-
-  /* USARTx configured as follow:
-        - BaudRate = 115200 baud
-        - Word Length = 8 Bits
-        - One Stop Bit
-        - No parity
-        - Hardware flow control disabled (RTS and CTS signals)
-        - Receive and transmit enabled
-  */
-  USART_InitStructure.USART_BaudRate = 115200;
-  USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-  USART_InitStructure.USART_StopBits = USART_StopBits_1;
-  USART_InitStructure.USART_Parity = USART_Parity_No;
-  USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-  USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-
-  STM_EVAL_COMInit(COM1, &USART_InitStructure);
-#endif
-
-  /* TODO - Add your application code here */
-
-  /* Infinite loop */
-  while (1)
-  {
-	i++;
-#ifdef USE_LED
-	STM_EVAL_LEDToggle(LED1);
-
-#elif defined USE_STM32_DISCOVERY
-    if(0 == STM32vldiscovery_PBGetState(BUTTON_USER))
+	ili9341_begin();
+    
+    /* Infinite loop */
+    while (1)
     {
-      /* Toggle LED3 */
-      STM32vldiscovery_LEDToggle(LED3);
-      /* Turn Off LED4 */
-      STM32vldiscovery_LEDOff(LED4);
+		ili9341_fill_rect(0, 0, 319, 239, ILI9341_RED);
     }
-    else
-    {
-      /* Toggle LED4 */
-        STM32vldiscovery_LEDToggle(LED4);
-      /* Turn Off LED3 */
-      STM32vldiscovery_LEDOff(LED3);
-    }
-#endif
-  }
 }
 
 #ifdef  USE_FULL_ASSERT
@@ -341,13 +452,13 @@ int main(void)
   */
 void assert_failed(uint8_t* file, uint32_t line)
 {
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-
-  /* Infinite loop */
-  while (1)
-  {
-  }
+    /* User can add his own implementation to report the file name and line number,
+       ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+    
+    /* Infinite loop */
+    while (1)
+    {
+    }
 }
 #endif
 
@@ -356,8 +467,8 @@ void assert_failed(uint8_t* file, uint32_t line)
  * */
 extern "C" void __assert_func(const char *file, int line, const char *func, const char *failedexpr)
 {
-  while(1)
-  {}
+    while(1)
+    {}
 }
 
 /*
@@ -365,7 +476,7 @@ extern "C" void __assert_func(const char *file, int line, const char *func, cons
  * */
 extern "C" void __assert(const char *file, int line, const char *failedexpr)
 {
-   __assert_func (file, line, NULL, failedexpr);
+    __assert_func (file, line, NULL, failedexpr);
 }
 
 #ifdef USE_SEE
@@ -377,8 +488,8 @@ extern "C" void __assert(const char *file, int line, const char *failedexpr)
   */
 uint32_t sEE_TIMEOUT_UserCallback(void)
 {
-  /* Return with error code */
-  return sEE_FAIL;
+    /* Return with error code */
+    return sEE_FAIL;
 }
 #endif
 #endif /* USE_SEE */
