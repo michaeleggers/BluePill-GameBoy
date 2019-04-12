@@ -22,6 +22,8 @@
 #include "main.h"
 #include <stdlib.h>
 
+#include "ili9341.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -63,6 +65,14 @@
 #define ORANGE      0xFD20
 #define GREENYELLOW 0xAFE5
 #define PINK        0xF81F
+
+#define CS_HIGH   (GPIOA->ODR |= GPIO_ODR_ODR2)
+#define CS_LOW    (GPIOA->ODR &= ~GPIO_ODR_ODR2)
+#define DC_HIGH   (GPIOB->ODR |=  GPIO_ODR_ODR0)
+#define DC_LOW    (GPIOA->ODR &= ~GPIO_ODR_ODR0)
+#define RST_HIGH  (GPIOA->ODR |= GPIO_ODR_ODR1)
+#define RST_LOW   (GPIOA->ODR &= ~GPIO_ODR_ODR1)
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -82,12 +92,12 @@ volatile uint16_t LCD_WIDTH =  320;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
-void SPI1_init();
 
 void lcdInit(void);
 void ILI9341_Draw_Pixel(uint16_t X,uint16_t Y,uint16_t Colour);
+void ili3941_fillscreen(uint16_t color);
 void ILI9341_Set_Rotation(uint8_t Rotation);
-void ILI9341_SPI_Send(unsigned char SPI_data);
+uint8_t ILI9341_SPI_Send(unsigned char data);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -101,48 +111,65 @@ void ILI9341_SPI_Send(unsigned char SPI_data);
   * @brief  The application entry point.
   * @retval int
   */
+
+static inline uint8_t SPI1_write(uint8_t data)
+{
+	while (!(SPI1->SR & SPI_SR_TXE)) {}
+    *((volatile uint8_t*)&SPI1->DR) = data; // cast is necessary cause DR is uint16_t
+    while (SPI1->SR & SPI_SR_BSY) {}
+    return SPI1->DR;
+}
+
+static inline void SPI1_writeData(uint8_t data)
+{
+//	GPIOA->ODR |= GPIO_ODR_ODR0;
+    GPIOA->ODR &= ~GPIO_ODR_ODR2;
+	SPI1_write(data);
+	GPIOA->ODR |= GPIO_ODR_ODR2;
+}
+
+static inline void SPI1_writeCmd(uint8_t cmd)
+{
+    GPIOA->ODR &= ~GPIO_ODR_ODR2;
+    GPIOA->ODR &= ~GPIO_ODR_ODR0;
+    HAL_Delay(1);
+    SPI1_write(cmd);
+	GPIOA->ODR |= GPIO_ODR_ODR0;
+	GPIOA->ODR |= GPIO_ODR_ODR2;
+
+}
+
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
 
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-//  MX_SPI1_Init();
-  /* USER CODE BEGIN 2 */
-
-  /* USER CODE END 2 */
 
   lcdInit();
-  uint16_t x, y;
-  x = y = 0;
+
   while (1)
   {
-	  uint8_t r = (rand()/(float)RAND_MAX)*255;
-	  uint8_t g = (rand()/(float)RAND_MAX)*255;
-	  uint8_t b = (rand()/(float)RAND_MAX)*255;
-	  uint16_t color = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
-	  ILI9341_Draw_Pixel((rand()/(float)RAND_MAX)*LCD_WIDTH,
-			  (rand()/(float)RAND_MAX)*LCD_HEIGHT, color);
-	  x++;
-	  y++;
+	  ili3941_fillscreen(ILI9341_RED);
+	  ili3941_fillscreen(ILI9341_GREEN);
+	  ili3941_fillscreen(ILI9341_BLUE);
+	  ili3941_fillscreen(ILI9341_MAGENTA);
+	  ili3941_fillscreen(ILI9341_ORANGE);
+	  ili3941_fillscreen(ILI9341_YELLOW);
+	  for (int i=0; i<1000; i++)
+	  {
+		  uint8_t r = (rand()/(float)RAND_MAX)*255;
+		  uint8_t g = (rand()/(float)RAND_MAX)*255;
+		  uint8_t b = (rand()/(float)RAND_MAX)*255;
+		  uint16_t color = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+		  ILI9341_Draw_Pixel((rand()/(float)RAND_MAX)*LCD_WIDTH,
+				  (rand()/(float)RAND_MAX)*LCD_HEIGHT, color);
+	  }
 	  //HAL_Delay(100);
     /* USER CODE END WHILE */
 //    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
@@ -154,13 +181,6 @@ int main(void)
     /* USER CODE BEGIN 3 */
   }
 }
-
-
-
-
-
-
-
 
 void writeCmd(uint8_t cmd)
 {
@@ -200,28 +220,28 @@ void ILI9341_Set_Rotation(uint8_t Rotation)
 
 	uint8_t screen_rotation = Rotation;
 
-	writeCmd(0x36);
+	SPI1_writeCmd(0x36);
 	HAL_Delay(1);
 
 	switch(screen_rotation)
 {
 	case SCREEN_VERTICAL_1:
-		writeData(0x40|0x08);
+		SPI1_writeData(0x40|0x08);
 		LCD_WIDTH = 240;
 		LCD_HEIGHT = 320;
 		break;
 	case SCREEN_HORIZONTAL_1:
-		writeData(0x20|0x08);
+		SPI1_writeData(0x20|0x08);
 		LCD_WIDTH  = 320;
 		LCD_HEIGHT = 240;
 		break;
 	case SCREEN_VERTICAL_2:
-		writeData(0x80|0x08);
+		SPI1_writeData(0x80|0x08);
 		LCD_WIDTH  = 240;
 		LCD_HEIGHT = 320;
 		break;
 	case SCREEN_HORIZONTAL_2:
-		writeData(0x40|0x80|0x20|0x08);
+		SPI1_writeData(0x40|0x80|0x20|0x08);
 		LCD_WIDTH  = 320;
 		LCD_HEIGHT = 240;
 		break;
@@ -237,77 +257,268 @@ void lcdInit(void)
 	MX_SPI1_Init();
 //	SPI1_init();
 	lcdReset();
-
-	writeCmd(0x01);
+	SPI1->CR1 |= SPI_CR1_SPE;
+/////////////////////////////////////
+//	 WORSK PARTIALLY
+	SPI1_writeCmd(0x01);
 	HAL_Delay(1000);
 
-	writeCmd(0x3A);
-	writeData(0x55);
+	SPI1_writeCmd(0x3A);
+//	HAL_Delay(5);
+	SPI1_writeData(0x55);
 
 
 	//EXIT SLEEP
-	writeCmd(0x11);
+	SPI1_writeCmd(0x11);
 	HAL_Delay(120);
 
 	//TURN ON DISPLAY
-	writeCmd(0x29);
+	SPI1_writeCmd(0x29);
+	HAL_Delay(120);
+// ! WORKS PARTIALLY
+///////////////////////////////////////
 
+	//SOFTWARE RESET
+//	SPI1_writeCmd(0x01);
+//	HAL_Delay(1000);
+//
+//	//POWER CONTROL A
+//	SPI1_writeCmd(0xCB);
+//	SPI1_writeData(0x39);
+//	SPI1_writeData(0x2C);
+//	SPI1_writeData(0x00);
+//	SPI1_writeData(0x34);
+//	SPI1_writeData(0x02);
+//
+//	//POWER CONTROL B
+//	SPI1_writeCmd(0xCF);
+//	SPI1_writeData(0x00);
+//	SPI1_writeData(0xC1);
+//	SPI1_writeData(0x30);
+//
+//	//DRIVER TIMING CONTROL A
+//	SPI1_writeCmd(0xE8);
+//	SPI1_writeData(0x85);
+//	SPI1_writeData(0x00);
+//	SPI1_writeData(0x78);
+//
+//	//DRIVER TIMING CONTROL B
+//	SPI1_writeCmd(0xEA);
+//	SPI1_writeData(0x00);
+//	SPI1_writeData(0x00);
+//
+//	//POWER ON SEQUENCE CONTROL
+//	SPI1_writeCmd(0xED);
+//	SPI1_writeData(0x64);
+//	SPI1_writeData(0x03);
+//	SPI1_writeData(0x12);
+//	SPI1_writeData(0x81);
+//
+//	//PUMP RATIO CONTROL
+//	SPI1_writeCmd(0xF7);
+//	SPI1_writeData(0x20);
+//
+//	//POWER CONTROL,VRH[5:0]
+//	SPI1_writeCmd(0xC0);
+//	SPI1_writeData(0x23);
+//
+//	//POWER CONTROL,SAP[2:0];BT[3:0]
+//	SPI1_writeCmd(0xC1);
+//	SPI1_writeData(0x10);
+//
+//	//VCM CONTROL
+//	SPI1_writeCmd(0xC5);
+//	SPI1_writeData(0x3E);
+//	SPI1_writeData(0x28);
+//
+//	//VCM CONTROL 2
+//	SPI1_writeCmd(0xC7);
+//	SPI1_writeData(0x86);
+//
+//	//MEMORY ACCESS CONTROL
+//	SPI1_writeCmd(0x36);
+//	SPI1_writeData(0x48);
+//
+//	//PIXEL FORMAT
+//	SPI1_writeCmd(0x3A);
+//	SPI1_writeData(0x55);
+//
+//	//FRAME RATIO CONTROL, STANDARD RGB COLOR
+//	SPI1_writeCmd(0xB1);
+//	SPI1_writeData(0x00);
+//	SPI1_writeData(0x18);
+//
+//	//DISPLAY FUNCTION CONTROL
+//	SPI1_writeCmd(0xB6);
+//	SPI1_writeData(0x08);
+//	SPI1_writeData(0x82);
+//	SPI1_writeData(0x27);
+//
+//	//3GAMMA FUNCTION DISABLE
+//	SPI1_writeCmd(0xF2);
+//	SPI1_writeData(0x00);
+//
+//	//GAMMA CURVE SELECTED
+//	SPI1_writeCmd(0x26);
+//	SPI1_writeData(0x01);
+//
+//	//POSITIVE GAMMA CORRECTION
+//	SPI1_writeCmd(0xE0);
+//	SPI1_writeData(0x0F);
+//	SPI1_writeData(0x31);
+//	SPI1_writeData(0x2B);
+//	SPI1_writeData(0x0C);
+//	SPI1_writeData(0x0E);
+//	SPI1_writeData(0x08);
+//	SPI1_writeData(0x4E);
+//	SPI1_writeData(0xF1);
+//	SPI1_writeData(0x37);
+//	SPI1_writeData(0x07);
+//	SPI1_writeData(0x10);
+//	SPI1_writeData(0x03);
+//	SPI1_writeData(0x0E);
+//	SPI1_writeData(0x09);
+//	SPI1_writeData(0x00);
+//
+//	//NEGATIVE GAMMA CORRECTION
+//	SPI1_writeCmd(0xE1);
+//	SPI1_writeData(0x00);
+//	SPI1_writeData(0x0E);
+//	SPI1_writeData(0x14);
+//	SPI1_writeData(0x03);
+//	SPI1_writeData(0x11);
+//	SPI1_writeData(0x07);
+//	SPI1_writeData(0x31);
+//	SPI1_writeData(0xC1);
+//	SPI1_writeData(0x48);
+//	SPI1_writeData(0x08);
+//	SPI1_writeData(0x0F);
+//	SPI1_writeData(0x0C);
+//	SPI1_writeData(0x31);
+//	SPI1_writeData(0x36);
+//	SPI1_writeData(0x0F);
+//
+//	//EXIT SLEEP
+//	SPI1_writeCmd(0x11);
+//	HAL_Delay(120);
+//
+////	TURN ON DISPLAY
+//	SPI1_writeCmd(0x29);
+
+	//STARTING ROTATION
 	ILI9341_Set_Rotation(SCREEN_HORIZONTAL_1);
 
 }
 
-void ILI9341_SPI_Send(unsigned char SPI_Data)
+uint8_t ILI9341_SPI_Send(unsigned char data)
 {
-	HAL_SPI_Transmit(&hspi1, &SPI_Data, 1, 1);
-//	while (!(SPI1->SR & 2)) {}
-////	GPIOB->BSRR = 0x0800;
-//	SPI1->DR = SPI_Data;
-//	while (SPI1->SR & 0x80) {}
-////	GPIOB->BSRR = 0x08000000;
+	HAL_SPI_Transmit(&hspi1, &data, 1, 1);
+//	while (!(SPI1->SR & SPI_SR_TXE)) {}
+//	*((volatile uint8_t*)&SPI1->DR) = data; // cast is necessary cause DR is uint16_t
+//	while (SPI1->SR & SPI_SR_BSY) {}
+//	return SPI1->DR;
+}
+
+void ili3941_fillscreen(uint16_t color)
+{
+	//ADDRESS
+	SPI1_writeCmd(0x2A);
+
+	//XDATA
+	SPI1_writeData(0>>8);
+	SPI1_writeData(0);
+	SPI1_writeData(320>>8);
+	SPI1_writeData((uint8_t)320);
+
+	//ADDRESS
+	SPI1_writeCmd(0x2B);
+
+	//YDATA
+	SPI1_writeData(0>>8);
+	SPI1_writeData(0);
+	SPI1_writeData(240>>8);
+	SPI1_writeData((uint8_t)240);
+
+	//ADDRESS
+	SPI1_writeCmd(0x2C);
+
+	GPIOA->ODR &= ~GPIO_ODR_ODR2;
+	for (int i=0; i < 320*240; i++)
+	{
+		SPI1_write(color >> 8);
+		SPI1_write(color);
+	}
+	GPIOA->ODR |= GPIO_ODR_ODR2;
+
 }
 
 void ILI9341_Draw_Pixel(uint16_t X,uint16_t Y,uint16_t Colour)
 {
-	if((X >=LCD_WIDTH) || (Y >=LCD_HEIGHT)) return;	//OUT OF BOUNDS!
+	if((X+50 >=LCD_WIDTH) || (Y+50 >=LCD_HEIGHT)) return;	//OUT OF BOUNDS!
 
 	//ADDRESS
-	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-	ILI9341_SPI_Send(0x2A);
-	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_RESET);
+//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
+	SPI1_writeCmd(0x2A);
+//	SPI1_write(0x2A);
+//	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
 
 	//XDATA
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-	unsigned char Temp_Buffer[4] = {X>>8,X, (X+50)>>8, (X+50)};
-	HAL_SPI_Transmit(&hspi1, Temp_Buffer, 4, 1);
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
+//	unsigned char Temp_Buffer[4] = {X>>8,X, (X+5)>>8, (X+5)};
+	SPI1_writeData(X>>8);
+	SPI1_writeData(X);
+	SPI1_writeData((X+50)>>8);
+	SPI1_writeData(X+50);
+//	HAL_SPI_Transmit(&hspi1, Temp_Buffer, 4, 1);
+//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
 
 	//ADDRESS
-	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-	ILI9341_SPI_Send(0x2B);
-	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_RESET);
+//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
+//	DC_LOW;
+//	CS_LOW;
+//	SPI1_write(0x2B);
+	SPI1_writeCmd(0x2B);
+//	SPI1_writeCmd(0x2B);
+//	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
+//	DC_HIGH;
+//	CS_HIGH;
 
 	//YDATA
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-	unsigned char Temp_Buffer1[4] = {Y>>8,Y, (Y+50)>>8, (Y+50)};
-	HAL_SPI_Transmit(&hspi1, Temp_Buffer1, 4, 1);
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
+//	unsigned char Temp_Buffer1[4] = {Y>>8,Y, (Y+5)>>8, (Y+5)};
+//	HAL_SPI_Transmit(&hspi1, Temp_Buffer1, 4, 1);
+//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
+	SPI1_writeData(Y>>8);
+	SPI1_writeData(Y);
+	SPI1_writeData((Y+50)>>8);
+	SPI1_writeData(Y+50);
 
 	//ADDRESS
-	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-	ILI9341_SPI_Send(0x2C);
-	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_RESET);
+//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
+//	ILI9341_SPI_Send(0x2C);
+	SPI1_writeCmd(0x2C);
+//	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
 
 	//COLOUR
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-	unsigned char Temp_Buffer2[2] = {Colour>>8, Colour};
-	HAL_SPI_Transmit(&hspi1, Temp_Buffer2, 2, 1);
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
+//	unsigned char Temp_Buffer2[2] = {Colour>>8, Colour};
+//	HAL_SPI_Transmit(&hspi1, Temp_Buffer2, 2, 1);
+
+	GPIOA->ODR &= ~GPIO_ODR_ODR2;
+	for (int i=0; i<2500;++i)
+	{
+		SPI1_write(Colour>>8);
+		SPI1_write(Colour);
+//		HAL_Delay(1);
+	}
+	GPIOA->ODR |= GPIO_ODR_ODR2;
+//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
 
 }
 
@@ -352,61 +563,37 @@ void SystemClock_Config(void)
   */
 static void MX_SPI1_Init(void)
 {
-
-  /* USER CODE BEGIN SPI1_Init 0 */
-
-  /* USER CODE END SPI1_Init 0 */
-
-  /* USER CODE BEGIN SPI1_Init 1 */
-
-  /* USER CODE END SPI1_Init 1 */
   /* SPI1 parameter configuration*/
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 10;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI1_Init 2 */
+//  hspi1.Instance = SPI1;
+//  hspi1.Init.Mode = SPI_MODE_MASTER;
+//  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+//  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+//  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+//  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+//  hspi1.Init.NSS = SPI_NSS_SOFT;
+//  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+//  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+//  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+//  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+//  hspi1.Init.CRCPolynomial = 10;
+//  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
 
-  /* USER CODE END SPI1_Init 2 */
-
+		SPI1->CR1 &= ~SPI_CR1_SPE; // enable SPI
+//	    	RCC->APB2ENR |= RCC_APB2RSTR_SPI1RST;
+//	    	RCC->APB2ENR &= ~(RCC_APB2RSTR_SPI1RST);
+		// configure and enable
+		SPI1->CR1 &= ~(SPI_CR1_CPOL|SPI_CR1_CPHA); // pol high, capture on second edge
+		SPI1->CR1 &= ~(SPI_CR1_BR);
+		SPI1->CR1 &= ~(SPI_CR1_DFF|SPI_CR1_LSBFIRST);
+		SPI1->CR1 |= (SPI_CR1_MSTR|SPI_CR1_SSI|SPI_CR1_SSM);
+	//	SPI1->CR2 |= SPI_CR2_SSOE;
+		SPI1->CR1 |= SPI_CR1_SPE;
+		// 8Bit, MSB and BR=2 _should_ be set by default
 }
 
-void SPI1_init()
-{
-	// MISO/MOSI/SCK GPIO-SPI config:
-//	RCC->APB2ENR |= 0x04; // enable GPIOA clk
-//	RCC->APB2ENR |= 0x1000; // enable SPI1 clk
-	RCC->APB2ENR |= 0x100d;
-//	RCC->APB2ENR |= 1;
-//	GPIOA->CRL = 0;
-	GPIOA->CRL |= 0xb4b44444; // 0x99900000; // set GPIOA 5,6,7 to High-Speed Output and Alternate-Function mode
-	GPIOA->CRH |= 0x88844444;
-	// CS, CD, RST config:
-	RCC->APB2ENR |= 0x08; // enable GPIOB clk
-//	GPIOB->CRL = 0;
-//	GPIOB->CRH = 0;
-	GPIOB->CRL |= 0x44484424; // set GPIOB 1 to lowspeed output.
-	GPIOB->CRH |= 0x44442244; // Pin 10, 11, lowspeed output
-//	GPIOB->CRH |= 0x1900; // set GPIOB 10, 11 to highspeed output.
-
-	// SPI1 config-register setup and enable
-//	SPI1->CR1 = 0;
-	SPI1->CR1 = 0x344; //0x31C; // MSB, 8-Bit, BR 2, Low Polarity, On first Phase
-    SPI1->CR2 = 0; // Interrupts disabled
-//    SPI1->CR1 |= 0x40; // SPI1 enable
-}
 
 /**
   * @brief GPIO Initialization Function
@@ -415,30 +602,55 @@ void SPI1_init()
   */
 static void MX_GPIO_Init(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
+//  GPIO_InitTypeDef GPIO_InitStruct = {0};
+//
+//  /* GPIO Ports Clock Enable */
+//  __HAL_RCC_GPIOA_CLK_ENABLE();
+////  __HAL_RCC_GPIOB_CLK_ENABLE();
+//
+//  /*Configure GPIO pin Output Level */
+//  HAL_GPIO_WritePin(GPIOA, LCD_CS|LCD_DC|LCD_RST, GPIO_PIN_RESET);
+//
+//  /*Configure GPIO pins : PB1 PB10 PB11 */
+//  GPIO_InitStruct.Pin = LCD_CS|LCD_DC|LCD_RST;
+//  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+//  GPIO_InitStruct.Pull = GPIO_NOPULL;
+//  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+//  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+//
+//  /* configure SPI Pins */
+//  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7|GPIO_PIN_6|GPIO_PIN_5, GPIO_PIN_RESET);
+//  GPIO_InitStruct.Pin       = GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
+//  GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+//  GPIO_InitStruct.Pull      = GPIO_NOPULL;
+//  GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
+//  // GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
+//  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-//  __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LCD_CS|LCD_DC|LCD_RST, GPIO_PIN_RESET);
+  /////////////////////////////////////////////////////////////
 
-  /*Configure GPIO pins : PB1 PB10 PB11 */
-  GPIO_InitStruct.Pin = LCD_CS|LCD_DC|LCD_RST;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  // CMSIS INIT
+	// clock enable for SPI1, GPIOA and AF
+	RCC->APB2ENR |= (RCC_APB2ENR_AFIOEN|RCC_APB2ENR_IOPAEN|RCC_APB2ENR_SPI1EN);
 
-  /* configure SPI Pins */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7|GPIO_PIN_6|GPIO_PIN_5, GPIO_PIN_RESET);
-  GPIO_InitStruct.Pin       = GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
-  GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull      = GPIO_NOPULL;
-  GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
-  // GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	// GPIO DC
+	GPIOA->CRL |= GPIO_CRL_MODE0_1;
+	GPIOA->CRL &= ~( GPIO_CRL_MODE0_0|GPIO_CRL_CNF0 );
+	// GPIO RST
+	GPIOA->CRL |= GPIO_CRL_MODE1_1;
+	GPIOA->CRL &= ~( GPIO_CRL_MODE1_0|GPIO_CRL_CNF1 );
+	// GPIO CS
+	GPIOA->CRL |= GPIO_CRL_MODE2_1;
+	GPIOA->CRL &= ~( GPIO_CRL_MODE2_0|GPIO_CRL_CNF2 );
+
+	// SPI1 SCK, MOSI
+	GPIOA->CRL |= (GPIO_CRL_MODE5|GPIO_CRL_MODE7); // both to output PP
+	GPIOA->CRL |= (GPIO_CRL_CNF5_1|GPIO_CRL_CNF7_1);
+	GPIOA->CRL &= ~( GPIO_CRL_CNF5_0|GPIO_CRL_CNF7_0 );
+	// SPI1 MISO
+	GPIOA->CRL &= ~( GPIO_CRL_MODE6|GPIO_CRL_CNF6_1 );
+	GPIOA->CRL |= GPIO_CRL_CNF6_0;
 
 }
 
