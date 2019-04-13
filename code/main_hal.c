@@ -94,7 +94,9 @@ static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 
 void lcdInit(void);
-void ILI9341_Draw_Pixel(uint16_t X,uint16_t Y,uint16_t Colour);
+void ili9341_set_window(uint16_t x, uint16_t y, uint16_t width, uint16_t height);
+void ili9341_draw_pixel(uint16_t x, uint16_t y, uint16_t color);
+void ili9341_fill_rect(uint16_t x,uint16_t y, uint16_t width, uint16_t height, uint16_t color);
 void ili3941_fillscreen(uint16_t color);
 void ILI9341_Set_Rotation(uint8_t Rotation);
 uint8_t ILI9341_SPI_Send(unsigned char data);
@@ -153,23 +155,37 @@ int main(void)
 
   lcdInit();
 
+	  ili3941_fillscreen(ILI9341_BLACK);
+	  for (int y=0; y < LCD_HEIGHT; ++y)
+	  {
+		  for (int x=0; x < LCD_WIDTH; ++x)
+		  {
+			  uint8_t r = (rand()/(float)RAND_MAX)*255;
+			  uint8_t g = (rand()/(float)RAND_MAX)*255;
+			  uint8_t b = (rand()/(float)RAND_MAX)*255;
+			  uint16_t color = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+			  ili9341_draw_pixel(x, y, color);
+		  }
+	  }
   while (1)
   {
-	  ili3941_fillscreen(ILI9341_RED);
-	  ili3941_fillscreen(ILI9341_GREEN);
-	  ili3941_fillscreen(ILI9341_BLUE);
-	  ili3941_fillscreen(ILI9341_MAGENTA);
-	  ili3941_fillscreen(ILI9341_ORANGE);
-	  ili3941_fillscreen(ILI9341_YELLOW);
-	  for (int i=0; i<1000; i++)
-	  {
-		  uint8_t r = (rand()/(float)RAND_MAX)*255;
-		  uint8_t g = (rand()/(float)RAND_MAX)*255;
-		  uint8_t b = (rand()/(float)RAND_MAX)*255;
-		  uint16_t color = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
-		  ILI9341_Draw_Pixel((rand()/(float)RAND_MAX)*LCD_WIDTH,
-				  (rand()/(float)RAND_MAX)*LCD_HEIGHT, color);
-	  }
+//	  ili3941_fillscreen(ILI9341_RED);
+//	  ili3941_fillscreen(ILI9341_GREEN);
+//	  ili3941_fillscreen(ILI9341_BLUE);
+//	  ili3941_fillscreen(ILI9341_MAGENTA);
+//	  ili3941_fillscreen(ILI9341_ORANGE);
+//	  ili3941_fillscreen(ILI9341_YELLOW);
+//	  ili3941_fillscreen(ILI9341_BLACK);
+//	  ili3941_fillscreen(ILI9341_WHITE);
+//	  for (int i=0; i<1000; i++)
+//	  {
+//		  uint8_t r = (rand()/(float)RAND_MAX)*255;
+//		  uint8_t g = (rand()/(float)RAND_MAX)*255;
+//		  uint8_t b = (rand()/(float)RAND_MAX)*255;
+//		  uint16_t color = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+//		  ili9341_fill_rect((rand()/(float)RAND_MAX)*LCD_WIDTH, (rand()/(float)RAND_MAX)*LCD_HEIGHT,
+//				  (rand()/(float)RAND_MAX)*LCD_WIDTH, (rand()/(float)RAND_MAX)*LCD_HEIGHT, color);
+//	  }
 	  //HAL_Delay(100);
     /* USER CODE END WHILE */
 //    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
@@ -260,153 +276,153 @@ void lcdInit(void)
 	SPI1->CR1 |= SPI_CR1_SPE;
 /////////////////////////////////////
 //	 WORSK PARTIALLY
-	SPI1_writeCmd(0x01);
-	HAL_Delay(1000);
-
-	SPI1_writeCmd(0x3A);
-//	HAL_Delay(5);
-	SPI1_writeData(0x55);
-
-
-	//EXIT SLEEP
-	SPI1_writeCmd(0x11);
-	HAL_Delay(120);
-
-	//TURN ON DISPLAY
-	SPI1_writeCmd(0x29);
-	HAL_Delay(120);
-// ! WORKS PARTIALLY
-///////////////////////////////////////
-
-	//SOFTWARE RESET
 //	SPI1_writeCmd(0x01);
 //	HAL_Delay(1000);
 //
-//	//POWER CONTROL A
-//	SPI1_writeCmd(0xCB);
-//	SPI1_writeData(0x39);
-//	SPI1_writeData(0x2C);
-//	SPI1_writeData(0x00);
-//	SPI1_writeData(0x34);
-//	SPI1_writeData(0x02);
-//
-//	//POWER CONTROL B
-//	SPI1_writeCmd(0xCF);
-//	SPI1_writeData(0x00);
-//	SPI1_writeData(0xC1);
-//	SPI1_writeData(0x30);
-//
-//	//DRIVER TIMING CONTROL A
-//	SPI1_writeCmd(0xE8);
-//	SPI1_writeData(0x85);
-//	SPI1_writeData(0x00);
-//	SPI1_writeData(0x78);
-//
-//	//DRIVER TIMING CONTROL B
-//	SPI1_writeCmd(0xEA);
-//	SPI1_writeData(0x00);
-//	SPI1_writeData(0x00);
-//
-//	//POWER ON SEQUENCE CONTROL
-//	SPI1_writeCmd(0xED);
-//	SPI1_writeData(0x64);
-//	SPI1_writeData(0x03);
-//	SPI1_writeData(0x12);
-//	SPI1_writeData(0x81);
-//
-//	//PUMP RATIO CONTROL
-//	SPI1_writeCmd(0xF7);
-//	SPI1_writeData(0x20);
-//
-//	//POWER CONTROL,VRH[5:0]
-//	SPI1_writeCmd(0xC0);
-//	SPI1_writeData(0x23);
-//
-//	//POWER CONTROL,SAP[2:0];BT[3:0]
-//	SPI1_writeCmd(0xC1);
-//	SPI1_writeData(0x10);
-//
-//	//VCM CONTROL
-//	SPI1_writeCmd(0xC5);
-//	SPI1_writeData(0x3E);
-//	SPI1_writeData(0x28);
-//
-//	//VCM CONTROL 2
-//	SPI1_writeCmd(0xC7);
-//	SPI1_writeData(0x86);
-//
-//	//MEMORY ACCESS CONTROL
-//	SPI1_writeCmd(0x36);
-//	SPI1_writeData(0x48);
-//
-//	//PIXEL FORMAT
 //	SPI1_writeCmd(0x3A);
+////	HAL_Delay(5);
 //	SPI1_writeData(0x55);
 //
-//	//FRAME RATIO CONTROL, STANDARD RGB COLOR
-//	SPI1_writeCmd(0xB1);
-//	SPI1_writeData(0x00);
-//	SPI1_writeData(0x18);
-//
-//	//DISPLAY FUNCTION CONTROL
-//	SPI1_writeCmd(0xB6);
-//	SPI1_writeData(0x08);
-//	SPI1_writeData(0x82);
-//	SPI1_writeData(0x27);
-//
-//	//3GAMMA FUNCTION DISABLE
-//	SPI1_writeCmd(0xF2);
-//	SPI1_writeData(0x00);
-//
-//	//GAMMA CURVE SELECTED
-//	SPI1_writeCmd(0x26);
-//	SPI1_writeData(0x01);
-//
-//	//POSITIVE GAMMA CORRECTION
-//	SPI1_writeCmd(0xE0);
-//	SPI1_writeData(0x0F);
-//	SPI1_writeData(0x31);
-//	SPI1_writeData(0x2B);
-//	SPI1_writeData(0x0C);
-//	SPI1_writeData(0x0E);
-//	SPI1_writeData(0x08);
-//	SPI1_writeData(0x4E);
-//	SPI1_writeData(0xF1);
-//	SPI1_writeData(0x37);
-//	SPI1_writeData(0x07);
-//	SPI1_writeData(0x10);
-//	SPI1_writeData(0x03);
-//	SPI1_writeData(0x0E);
-//	SPI1_writeData(0x09);
-//	SPI1_writeData(0x00);
-//
-//	//NEGATIVE GAMMA CORRECTION
-//	SPI1_writeCmd(0xE1);
-//	SPI1_writeData(0x00);
-//	SPI1_writeData(0x0E);
-//	SPI1_writeData(0x14);
-//	SPI1_writeData(0x03);
-//	SPI1_writeData(0x11);
-//	SPI1_writeData(0x07);
-//	SPI1_writeData(0x31);
-//	SPI1_writeData(0xC1);
-//	SPI1_writeData(0x48);
-//	SPI1_writeData(0x08);
-//	SPI1_writeData(0x0F);
-//	SPI1_writeData(0x0C);
-//	SPI1_writeData(0x31);
-//	SPI1_writeData(0x36);
-//	SPI1_writeData(0x0F);
 //
 //	//EXIT SLEEP
 //	SPI1_writeCmd(0x11);
 //	HAL_Delay(120);
 //
-////	TURN ON DISPLAY
+//	//TURN ON DISPLAY
 //	SPI1_writeCmd(0x29);
+//	HAL_Delay(120);
+// ! WORKS PARTIALLY
+///////////////////////////////////////
+
+	//SOFTWARE RESET
+	SPI1_writeCmd(0x01);
+	HAL_Delay(1000);
+
+	//POWER CONTROL A
+	SPI1_writeCmd(0xCB);
+	SPI1_writeData(0x39);
+	SPI1_writeData(0x2C);
+	SPI1_writeData(0x00);
+	SPI1_writeData(0x34);
+	SPI1_writeData(0x02);
+
+	//POWER CONTROL B
+	SPI1_writeCmd(0xCF);
+	SPI1_writeData(0x00);
+	SPI1_writeData(0xC1);
+	SPI1_writeData(0x30);
+
+	//DRIVER TIMING CONTROL A
+	SPI1_writeCmd(0xE8);
+	SPI1_writeData(0x85);
+	SPI1_writeData(0x00);
+	SPI1_writeData(0x78);
+
+	//DRIVER TIMING CONTROL B
+	SPI1_writeCmd(0xEA);
+	SPI1_writeData(0x00);
+	SPI1_writeData(0x00);
+
+	//POWER ON SEQUENCE CONTROL
+	SPI1_writeCmd(0xED);
+	SPI1_writeData(0x64);
+	SPI1_writeData(0x03);
+	SPI1_writeData(0x12);
+	SPI1_writeData(0x81);
+
+	//PUMP RATIO CONTROL
+	SPI1_writeCmd(0xF7);
+	SPI1_writeData(0x20);
+
+	//POWER CONTROL,VRH[5:0]
+	SPI1_writeCmd(0xC0);
+	SPI1_writeData(0x23);
+
+	//POWER CONTROL,SAP[2:0];BT[3:0]
+	SPI1_writeCmd(0xC1);
+	SPI1_writeData(0x10);
+
+	//VCM CONTROL
+	SPI1_writeCmd(0xC5);
+	SPI1_writeData(0x3E);
+	SPI1_writeData(0x28);
+
+	//VCM CONTROL 2
+	SPI1_writeCmd(0xC7);
+	SPI1_writeData(0x86);
+
+	//MEMORY ACCESS CONTROL
+	SPI1_writeCmd(0x36);
+	SPI1_writeData(0x48);
+
+	//PIXEL FORMAT
+	SPI1_writeCmd(0x3A);
+	SPI1_writeData(0x55);
+
+	//FRAME RATIO CONTROL, STANDARD RGB COLOR
+	SPI1_writeCmd(0xB1);
+	SPI1_writeData(0x00);
+	SPI1_writeData(0x18);
+
+	//DISPLAY FUNCTION CONTROL
+	SPI1_writeCmd(0xB6);
+	SPI1_writeData(0x08);
+	SPI1_writeData(0x82);
+	SPI1_writeData(0x27);
+
+	//3GAMMA FUNCTION DISABLE
+	SPI1_writeCmd(0xF2);
+	SPI1_writeData(0x00);
+
+	//GAMMA CURVE SELECTED
+	SPI1_writeCmd(0x26);
+	SPI1_writeData(0x01);
+
+	//POSITIVE GAMMA CORRECTION
+	SPI1_writeCmd(0xE0);
+	SPI1_writeData(0x0F);
+	SPI1_writeData(0x31);
+	SPI1_writeData(0x2B);
+	SPI1_writeData(0x0C);
+	SPI1_writeData(0x0E);
+	SPI1_writeData(0x08);
+	SPI1_writeData(0x4E);
+	SPI1_writeData(0xF1);
+	SPI1_writeData(0x37);
+	SPI1_writeData(0x07);
+	SPI1_writeData(0x10);
+	SPI1_writeData(0x03);
+	SPI1_writeData(0x0E);
+	SPI1_writeData(0x09);
+	SPI1_writeData(0x00);
+
+	//NEGATIVE GAMMA CORRECTION
+	SPI1_writeCmd(0xE1);
+	SPI1_writeData(0x00);
+	SPI1_writeData(0x0E);
+	SPI1_writeData(0x14);
+	SPI1_writeData(0x03);
+	SPI1_writeData(0x11);
+	SPI1_writeData(0x07);
+	SPI1_writeData(0x31);
+	SPI1_writeData(0xC1);
+	SPI1_writeData(0x48);
+	SPI1_writeData(0x08);
+	SPI1_writeData(0x0F);
+	SPI1_writeData(0x0C);
+	SPI1_writeData(0x31);
+	SPI1_writeData(0x36);
+	SPI1_writeData(0x0F);
+
+	//EXIT SLEEP
+	SPI1_writeCmd(0x11);
+	HAL_Delay(120);
+
+//	TURN ON DISPLAY
+	SPI1_writeCmd(0x29);
 
 	//STARTING ROTATION
-	ILI9341_Set_Rotation(SCREEN_HORIZONTAL_1);
+	ILI9341_Set_Rotation(SCREEN_VERTICAL_1);
 
 }
 
@@ -419,43 +435,8 @@ uint8_t ILI9341_SPI_Send(unsigned char data)
 //	return SPI1->DR;
 }
 
-void ili3941_fillscreen(uint16_t color)
+void ili9341_set_window(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
 {
-	//ADDRESS
-	SPI1_writeCmd(0x2A);
-
-	//XDATA
-	SPI1_writeData(0>>8);
-	SPI1_writeData(0);
-	SPI1_writeData(320>>8);
-	SPI1_writeData((uint8_t)320);
-
-	//ADDRESS
-	SPI1_writeCmd(0x2B);
-
-	//YDATA
-	SPI1_writeData(0>>8);
-	SPI1_writeData(0);
-	SPI1_writeData(240>>8);
-	SPI1_writeData((uint8_t)240);
-
-	//ADDRESS
-	SPI1_writeCmd(0x2C);
-
-	GPIOA->ODR &= ~GPIO_ODR_ODR2;
-	for (int i=0; i < 320*240; i++)
-	{
-		SPI1_write(color >> 8);
-		SPI1_write(color);
-	}
-	GPIOA->ODR |= GPIO_ODR_ODR2;
-
-}
-
-void ILI9341_Draw_Pixel(uint16_t X,uint16_t Y,uint16_t Colour)
-{
-	if((X+50 >=LCD_WIDTH) || (Y+50 >=LCD_HEIGHT)) return;	//OUT OF BOUNDS!
-
 	//ADDRESS
 //	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_RESET);
 //	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
@@ -467,10 +448,10 @@ void ILI9341_Draw_Pixel(uint16_t X,uint16_t Y,uint16_t Colour)
 	//XDATA
 //	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
 //	unsigned char Temp_Buffer[4] = {X>>8,X, (X+5)>>8, (X+5)};
-	SPI1_writeData(X>>8);
-	SPI1_writeData(X);
-	SPI1_writeData((X+50)>>8);
-	SPI1_writeData(X+50);
+	SPI1_writeData(x>>8);
+	SPI1_writeData(x);
+	SPI1_writeData((x+width)>>8);
+	SPI1_writeData(x+width);
 //	HAL_SPI_Transmit(&hspi1, Temp_Buffer, 4, 1);
 //	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
 
@@ -492,10 +473,10 @@ void ILI9341_Draw_Pixel(uint16_t X,uint16_t Y,uint16_t Colour)
 //	unsigned char Temp_Buffer1[4] = {Y>>8,Y, (Y+5)>>8, (Y+5)};
 //	HAL_SPI_Transmit(&hspi1, Temp_Buffer1, 4, 1);
 //	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
-	SPI1_writeData(Y>>8);
-	SPI1_writeData(Y);
-	SPI1_writeData((Y+50)>>8);
-	SPI1_writeData(Y+50);
+	SPI1_writeData(y>>8);
+	SPI1_writeData(y);
+	SPI1_writeData((y+height)>>8);
+	SPI1_writeData(y+height);
 
 	//ADDRESS
 //	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_RESET);
@@ -509,12 +490,46 @@ void ILI9341_Draw_Pixel(uint16_t X,uint16_t Y,uint16_t Colour)
 //	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
 //	unsigned char Temp_Buffer2[2] = {Colour>>8, Colour};
 //	HAL_SPI_Transmit(&hspi1, Temp_Buffer2, 2, 1);
+}
+
+void ili9341_draw_pixel(uint16_t x, uint16_t y, uint16_t color)
+{
+	if((x >= LCD_WIDTH) || (y >= LCD_HEIGHT)) return;	//OUT OF BOUNDS!
+	ili9341_set_window(x, y, x+1, y+1);
+	GPIOA->ODR &= ~GPIO_ODR_ODR2;
+	SPI1_write(color >> 8);
+	SPI1_write(color);
+	GPIOA->ODR |= GPIO_ODR_ODR2;
+}
+
+void ili3941_fillscreen(uint16_t color)
+{
+	ili9341_set_window(0, 0, LCD_WIDTH, LCD_HEIGHT);
+
+	//ADDRESS
+	SPI1_writeCmd(0x2C);
 
 	GPIOA->ODR &= ~GPIO_ODR_ODR2;
-	for (int i=0; i<2500;++i)
+	for (int i=0; i < 320*240; i++)
 	{
-		SPI1_write(Colour>>8);
-		SPI1_write(Colour);
+		SPI1_write(color >> 8);
+		SPI1_write(color);
+//		HAL_Delay(1);
+	}
+	GPIOA->ODR |= GPIO_ODR_ODR2;
+
+}
+
+void ili9341_fill_rect(uint16_t x,uint16_t y, uint16_t width, uint16_t height, uint16_t color)
+{
+	if((x+width >=LCD_WIDTH) || (y+height >=LCD_HEIGHT)) return;	//OUT OF BOUNDS!
+	ili9341_set_window(x, y, width, height);
+
+	GPIOA->ODR &= ~GPIO_ODR_ODR2;
+	for (int i=0; i<width*height;++i)
+	{
+		SPI1_write(color>>8);
+		SPI1_write(color);
 //		HAL_Delay(1);
 	}
 	GPIOA->ODR |= GPIO_ODR_ODR2;
@@ -531,29 +546,52 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-  /** Initializes the CPU, AHB and APB busses clocks 
+  /** Initializes the CPU, AHB and APB busses clocks
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Initializes the CPU, AHB and APB busses clocks 
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+//  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+//  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+//  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+//  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+//  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+//  /** Initializes the CPU, AHB and APB busses clocks
+//  */
+//  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+//                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+//  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+//  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+//  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+//  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+//
+//  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	// enable super fast 72MHz as SYSCLK. SPEEEEEEEEEED!!!!
+
+	RCC->CR &= ~RCC_CR_HSEON;
+	RCC->CR |=  RCC_CR_HSEON;
+	while ( !(RCC->CR & RCC_CR_HSERDY)) {}
+
+//	RCC->CFGR &= ~RCC_CFGR_SW; // set HSI as SYSCLK while configuring PLL (is this necessary?)
+	RCC->CFGR |= RCC_CFGR_PPRE1_DIV2; // APB1 prescaler: divide by 2, so APB1 clk will be 36MHz (should not exceed that!)
+//	RCC->CFGR &= ~RCC_CFGR_PPRE2; // APB2 prescaler: no divide -> 72MHz
+	RCC->CFGR |= RCC_CFGR_PLLSRC; // use HSE as PLL source
+//	RCC->CFGR &= ~RCC_CFGR_PLLXTPRE; // don't divide HSE clk
+	RCC->CFGR |= RCC_CFGR_PLLMULL9; // clk * 9
+	RCC->CR   |= RCC_CR_PLLON; // turn PLL on
+	while ( !(RCC->CR & RCC_CR_PLLRDY) ) {} // wait till PLL is ready
+	RCC->CFGR &= ~0xF0; // AHB prescaler: SYSCLK not devided.
+
+	// flash wait statess
+	FLASH->ACR |= FLASH_ACR_LATENCY_1;
+
+	RCC->CFGR &= ~RCC_CFGR_SW; // select PLL as SYSCLK
+	RCC->CFGR |= RCC_CFGR_SW_PLL;
+
 }
 
 /**
@@ -563,7 +601,7 @@ void SystemClock_Config(void)
   */
 static void MX_SPI1_Init(void)
 {
-  /* SPI1 parameter configuration*/
+//  /* SPI1 parameter configuration*/
 //  hspi1.Instance = SPI1;
 //  hspi1.Init.Mode = SPI_MODE_MASTER;
 //  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
