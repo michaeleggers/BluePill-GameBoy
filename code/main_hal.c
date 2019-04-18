@@ -66,6 +66,8 @@
 #define GREENYELLOW 0xAFE5
 #define PINK        0xF81F
 
+// for some reason these macros will confuse the display (especially DC_HIGH).
+// not sure what is going on but _dont_ use them just yet!
 #define CS_HIGH   (GPIOA->ODR |= GPIO_ODR_ODR2)
 #define CS_LOW    (GPIOA->ODR &= ~GPIO_ODR_ODR2)
 #define DC_HIGH   (GPIOB->ODR |=  GPIO_ODR_ODR0)
@@ -149,24 +151,28 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
-
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
 
   lcdInit();
 
-	  ili3941_fillscreen(ILI9341_BLACK);
-	  for (int y=0; y < LCD_HEIGHT; ++y)
+  ili3941_fillscreen(ILI9341_BLACK);
+  ili9341_fill_rect(0, 0, 10, 10, ILI9341_RED);
+  ili9341_fill_rect(230, 0, 10, 10, ILI9341_RED);
+  ili9341_fill_rect(0, 310, 10, 10, ILI9341_RED);
+  ili9341_fill_rect(230, 310, 10, 10, ILI9341_RED);
+  HAL_Delay(10);
+  for (int y=0; y < LCD_HEIGHT; ++y)
+  {
+	  for (int x=0; x < LCD_WIDTH; ++x)
 	  {
-		  for (int x=0; x < LCD_WIDTH; ++x)
-		  {
-			  uint8_t r = (rand()/(float)RAND_MAX)*255;
-			  uint8_t g = (rand()/(float)RAND_MAX)*255;
-			  uint8_t b = (rand()/(float)RAND_MAX)*255;
-			  uint16_t color = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
-			  ili9341_draw_pixel(x, y, color);
-		  }
+		  uint8_t r = (rand()/(float)RAND_MAX)*255;
+		  uint8_t g = (rand()/(float)RAND_MAX)*255;
+		  uint8_t b = (rand()/(float)RAND_MAX)*255;
+		  uint16_t color = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+		  ili9341_draw_pixel(x, y, color);
 	  }
+  }
   while (1)
   {
 //	  ili3941_fillscreen(ILI9341_RED);
@@ -437,80 +443,43 @@ uint8_t ILI9341_SPI_Send(unsigned char data)
 
 void ili9341_set_window(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
 {
-	//ADDRESS
-//	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_RESET);
-//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
+	//ADDRESS COLUMN
 	SPI1_writeCmd(0x2A);
-//	SPI1_write(0x2A);
-//	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_SET);
-//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
+
 
 	//XDATA
-//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-//	unsigned char Temp_Buffer[4] = {X>>8,X, (X+5)>>8, (X+5)};
 	SPI1_writeData(x>>8);
 	SPI1_writeData(x);
 	SPI1_writeData((x+width)>>8);
 	SPI1_writeData(x+width);
-//	HAL_SPI_Transmit(&hspi1, Temp_Buffer, 4, 1);
-//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
 
-	//ADDRESS
-//	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_RESET);
-//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-//	DC_LOW;
-//	CS_LOW;
-//	SPI1_write(0x2B);
+	//ADDRESS PAGE
 	SPI1_writeCmd(0x2B);
-//	SPI1_writeCmd(0x2B);
-//	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_SET);
-//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
-//	DC_HIGH;
-//	CS_HIGH;
 
 	//YDATA
-//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-//	unsigned char Temp_Buffer1[4] = {Y>>8,Y, (Y+5)>>8, (Y+5)};
-//	HAL_SPI_Transmit(&hspi1, Temp_Buffer1, 4, 1);
-//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
 	SPI1_writeData(y>>8);
 	SPI1_writeData(y);
 	SPI1_writeData((y+height)>>8);
 	SPI1_writeData(y+height);
 
-	//ADDRESS
-//	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_RESET);
-//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-//	ILI9341_SPI_Send(0x2C);
+	//ADDRESS memset
 	SPI1_writeCmd(0x2C);
-//	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_SET);
-//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
-
-	//COLOUR
-//	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-//	unsigned char Temp_Buffer2[2] = {Colour>>8, Colour};
-//	HAL_SPI_Transmit(&hspi1, Temp_Buffer2, 2, 1);
 }
 
 void ili9341_draw_pixel(uint16_t x, uint16_t y, uint16_t color)
 {
-	if((x >= LCD_WIDTH) || (y >= LCD_HEIGHT)) return;	//OUT OF BOUNDS!
-	ili9341_set_window(x, y, x+1, y+1);
-	GPIOA->ODR &= ~GPIO_ODR_ODR2;
-	SPI1_write(color >> 8);
-	SPI1_write(color);
-	GPIOA->ODR |= GPIO_ODR_ODR2;
+	ili9341_fill_rect(x, y, 1, 1, color);
 }
 
 void ili3941_fillscreen(uint16_t color)
 {
-	ili9341_set_window(0, 0, LCD_WIDTH, LCD_HEIGHT);
+	ili9341_set_window(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1);
 
 	//ADDRESS
 	SPI1_writeCmd(0x2C);
 
 	GPIOA->ODR &= ~GPIO_ODR_ODR2;
-	for (int i=0; i < 320*240; i++)
+	for (int i=0; i < LCD_WIDTH*LCD_HEIGHT; i++)
 	{
 		SPI1_write(color >> 8);
 		SPI1_write(color);
@@ -522,11 +491,11 @@ void ili3941_fillscreen(uint16_t color)
 
 void ili9341_fill_rect(uint16_t x,uint16_t y, uint16_t width, uint16_t height, uint16_t color)
 {
-	if((x+width >=LCD_WIDTH) || (y+height >=LCD_HEIGHT)) return;	//OUT OF BOUNDS!
-	ili9341_set_window(x, y, width, height);
+	if((x+width > LCD_WIDTH) || (y+height > LCD_HEIGHT)) return;	//OUT OF BOUNDS!
+	ili9341_set_window(x, y, width-1, height-1);
 
 	GPIOA->ODR &= ~GPIO_ODR_ODR2;
-	for (int i=0; i<width*height;++i)
+	for (int i = 0; i < width*height; ++i)
 	{
 		SPI1_write(color>>8);
 		SPI1_write(color);
@@ -543,33 +512,6 @@ void ili9341_fill_rect(uint16_t x,uint16_t y, uint16_t width, uint16_t height, u
   */
 void SystemClock_Config(void)
 {
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-
-  /** Initializes the CPU, AHB and APB busses clocks
-  */
-//  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-//  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-//  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-//  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-//  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-//  {
-//    Error_Handler();
-//  }
-//  /** Initializes the CPU, AHB and APB busses clocks
-//  */
-//  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-//                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-//  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
-//  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-//  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-//  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-//
-//  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
-//  {
-//    Error_Handler();
-//  }
-
 	// enable super fast 72MHz as SYSCLK. SPEEEEEEEEEED!!!!
 
 	RCC->CR &= ~RCC_CR_HSEON;
@@ -601,23 +543,6 @@ void SystemClock_Config(void)
   */
 static void MX_SPI1_Init(void)
 {
-//  /* SPI1 parameter configuration*/
-//  hspi1.Instance = SPI1;
-//  hspi1.Init.Mode = SPI_MODE_MASTER;
-//  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-//  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-//  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-//  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-//  hspi1.Init.NSS = SPI_NSS_SOFT;
-//  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-//  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-//  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-//  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-//  hspi1.Init.CRCPolynomial = 10;
-//  if (HAL_SPI_Init(&hspi1) != HAL_OK)
-//  {
-//    Error_Handler();
-//  }
 
 		SPI1->CR1 &= ~SPI_CR1_SPE; // enable SPI
 //	    	RCC->APB2ENR |= RCC_APB2RSTR_SPI1RST;
@@ -640,32 +565,6 @@ static void MX_SPI1_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
-//  GPIO_InitTypeDef GPIO_InitStruct = {0};
-//
-//  /* GPIO Ports Clock Enable */
-//  __HAL_RCC_GPIOA_CLK_ENABLE();
-////  __HAL_RCC_GPIOB_CLK_ENABLE();
-//
-//  /*Configure GPIO pin Output Level */
-//  HAL_GPIO_WritePin(GPIOA, LCD_CS|LCD_DC|LCD_RST, GPIO_PIN_RESET);
-//
-//  /*Configure GPIO pins : PB1 PB10 PB11 */
-//  GPIO_InitStruct.Pin = LCD_CS|LCD_DC|LCD_RST;
-//  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-//  GPIO_InitStruct.Pull = GPIO_NOPULL;
-//  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-//  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-//
-//  /* configure SPI Pins */
-//  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7|GPIO_PIN_6|GPIO_PIN_5, GPIO_PIN_RESET);
-//  GPIO_InitStruct.Pin       = GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
-//  GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-//  GPIO_InitStruct.Pull      = GPIO_NOPULL;
-//  GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
-//  // GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
-//  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-
   /////////////////////////////////////////////////////////////
 
   // CMSIS INIT
@@ -691,10 +590,6 @@ static void MX_GPIO_Init(void)
 	GPIOA->CRL |= GPIO_CRL_CNF6_0;
 
 }
-
-/* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
