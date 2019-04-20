@@ -24,15 +24,62 @@
 
 #include "ili9341.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
+static const uint8_t font[] = {
+		// 0
+		0x00, 0xFF, 0xFF, 0xFF, 0x00,
+		0x00, 0xFF, 0x00, 0xFF, 0x00,
+		0x00, 0xFF, 0x00, 0xFF, 0x00,
+		0x00, 0xFF, 0x00, 0xFF, 0x00,
+		0x00, 0xFF, 0xFF, 0xFF, 0x00,
+		// 1
+		0x00, 0x00, 0x00, 0xFF, 0x00,
+		0x00, 0x00, 0xFF, 0xFF, 0x00,
+		0x00, 0x00, 0x00, 0xFF, 0x00,
+		0x00, 0x00, 0x00, 0xFF, 0x00,
+		0x00, 0x00, 0xFF, 0xFF, 0xFF,
+		// 2
+		0x00, 0xFF, 0xFF, 0xFF, 0x00,
+		0xFF, 0x00, 0x00, 0x00, 0xFF,
+		0x00, 0x00, 0xFF, 0xFF, 0x00,
+		0x00, 0xFF, 0x00, 0x00, 0x00,
+		0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+		// 3
+		0x00, 0xFF, 0x00, 0xFF, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0xFF, 0x00, 0xFF, 0x00,
+		0x00, 0x00, 0xFF, 0x00, 0x00,
+};
 
-/* USER CODE END Includes */
+static const uint16_t box[] = {
+		0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7,
+		0x8aa7, 0x61c6, 0x61c6, 0x61c6, 0x61c6, 0x61c6, 0x8aa7, 0x8aa7,
+		0x8aa7, 0x61c6, 0x61c6, 0x61c6, 0x61c6, 0x8aa7, 0x61c6, 0x8aa7,
+		0x8aa7, 0x61c6, 0x61c6, 0x61c6, 0x8aa7, 0x61c6, 0x61c6, 0x8aa7,
+		0x8aa7, 0x61c6, 0x61c6, 0x8aa7, 0x61c6, 0x61c6, 0x61c6, 0x8aa7,
+		0x8aa7, 0x61c6, 0x8aa7, 0x61c6, 0x61c6, 0x61c6, 0x61c6, 0x8aa7,
+		0x8aa7, 0x8aa7, 0x61c6, 0x61c6, 0x61c6, 0x61c6, 0x61c6, 0x8aa7,
+		0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7
+};
 
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
+static const uint16_t tanya[] = {
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x39c7, 0x39c7, 0x39c7, 0xf1e4, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xee6f, 0xee6f, 0xf1e4, 0x39c7, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xee6f, 0xee6f, 0x39c7, 0x39c7, 0x39c7, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xee6f, 0x39c7, 0x39c7, 0x39c7, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xa3fd, 0x5175, 0x39c7, 0x39c7, 0x39c7, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xa3fd, 0x5175, 0x5175, 0x5175, 0x39c7, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xa3fd, 0x5175, 0x5175, 0x5175, 0xa3fd, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0xee6f, 0xa3fd, 0x5175, 0x5175, 0x5175, 0xa3fd, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x5175, 0x5175, 0x5175, 0xee6f, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x5175, 0x5175, 0x5175, 0x5175, 0x5175, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x5175, 0x5175, 0x5175, 0x5175, 0x5175, 0x5175, 0x5175, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xee6f, 0x0000, 0xee6f, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xee6f, 0x0000, 0xee6f, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xa986, 0xa986, 0x0000, 0xa986, 0xa986, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
+};
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
@@ -83,7 +130,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-SPI_HandleTypeDef hspi1;
 
 /* USER CODE BEGIN PV */
 volatile uint16_t LCD_HEIGHT = 240;
@@ -101,7 +147,8 @@ void ili9341_draw_pixel(uint16_t x, uint16_t y, uint16_t color);
 void ili9341_fill_rect(uint16_t x,uint16_t y, uint16_t width, uint16_t height, uint16_t color);
 void ili3941_fillscreen(uint16_t color);
 void ILI9341_Set_Rotation(uint8_t Rotation);
-uint8_t ILI9341_SPI_Send(unsigned char data);
+void ili9341_print(uint16_t x, uint16_t y, char const * string, uint8_t length);
+void ili9341_draw_bitmap(uint16_t x, uint16_t y, uint16_t scale, uint16_t size, uint16_t const * bitmap);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -161,28 +208,44 @@ int main(void)
   ili9341_fill_rect(230, 0, 10, 10, ILI9341_RED);
   ili9341_fill_rect(0, 310, 10, 10, ILI9341_RED);
   ili9341_fill_rect(230, 310, 10, 10, ILI9341_RED);
-  HAL_Delay(10);
-  for (int y=0; y < LCD_HEIGHT; ++y)
-  {
-	  for (int x=0; x < LCD_WIDTH; ++x)
-	  {
-		  uint8_t r = (rand()/(float)RAND_MAX)*255;
-		  uint8_t g = (rand()/(float)RAND_MAX)*255;
-		  uint8_t b = (rand()/(float)RAND_MAX)*255;
-		  uint16_t color = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
-		  ili9341_draw_pixel(x, y, color);
-	  }
-  }
+//  HAL_Delay(10);
+//  for (int y=0; y < LCD_HEIGHT; ++y)
+//  {
+//	  for (int x=0; x < LCD_WIDTH; ++x)
+//	  {
+//		  uint8_t r = (rand()/(float)RAND_MAX)*255;
+//		  uint8_t g = (rand()/(float)RAND_MAX)*255;
+//		  uint8_t b = (rand()/(float)RAND_MAX)*255;
+//		  uint16_t color = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+//		  ili9341_draw_pixel(x, y, color);
+//	  }
+//  }
+
+//  for (int row = 0; row < 7; ++row)
+//  {
+//	  for (int col = 0; col < 7; ++col)
+//	  {
+//		  ili9341_draw_bitmap(row*32, col*32, 4, box);
+//	  }
+//  }
   while (1)
   {
 //	  ili3941_fillscreen(ILI9341_RED);
+//	  HAL_Delay(500);
 //	  ili3941_fillscreen(ILI9341_GREEN);
+//	  HAL_Delay(500);
 //	  ili3941_fillscreen(ILI9341_BLUE);
+//	  HAL_Delay(500);
 //	  ili3941_fillscreen(ILI9341_MAGENTA);
+//	  HAL_Delay(500);
 //	  ili3941_fillscreen(ILI9341_ORANGE);
+//	  HAL_Delay(500);
 //	  ili3941_fillscreen(ILI9341_YELLOW);
+//	  HAL_Delay(500);
 //	  ili3941_fillscreen(ILI9341_BLACK);
+//	  HAL_Delay(500);
 //	  ili3941_fillscreen(ILI9341_WHITE);
+//	  HAL_Delay(500);
 //	  for (int i=0; i<1000; i++)
 //	  {
 //		  uint8_t r = (rand()/(float)RAND_MAX)*255;
@@ -192,35 +255,79 @@ int main(void)
 //		  ili9341_fill_rect((rand()/(float)RAND_MAX)*LCD_WIDTH, (rand()/(float)RAND_MAX)*LCD_HEIGHT,
 //				  (rand()/(float)RAND_MAX)*LCD_WIDTH, (rand()/(float)RAND_MAX)*LCD_HEIGHT, color);
 //	  }
-	  //HAL_Delay(100);
-    /* USER CODE END WHILE */
-//    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-//    HAL_SPI_TransmitReceive(&hspi1, (uint8_t*)data, (uint8_t*)buffer, strlen(data), 100);
-//    HAL_Delay(10);
-//	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+//	  ili3941_fillscreen(ILI9341_BLACK);
+//	  for (int i = 0; i < 1000; ++i)
+//	  {
+//		  ili9341_print((rand()/(float)RAND_MAX)*LCD_WIDTH, (rand()/(float)RAND_MAX)*LCD_HEIGHT);
+//	  }
+//	  ili9341_fill_rect(scaler, scaler, 16*4, 16*4, ILI9341_BLACK);
+//	  ili3941_fillscreen(ILI9341_BLACK);
+//	  HAL_Delay(16);
+	  static uint8_t scaler = 1;
+	  ili9341_draw_bitmap(scaler, scaler, 13, 16, tanya);
+	  ili9341_print(0, 0, "0123", 4);
+//	  HAL_Delay(1);
+	  if (scaler > 20) scaler = 1;
+	  else scaler++;
 
-    //HAL_Delay(4000);
-    /* USER CODE BEGIN 3 */
+//	  ili9341_draw_bitmap(0, 50, 4, box);
   }
 }
 
-void writeCmd(uint8_t cmd)
+void ili9341_draw_bitmap(uint16_t x, uint16_t y, uint16_t scale, uint16_t size, uint16_t const * bitmap)
 {
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_RESET);
-	HAL_SPI_Transmit(&hspi1, &cmd, 1, 1);
-//	ILI9341_SPI_Send((unsigned char)cmd);
-//	HAL_Delay(100);
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
+	if((x+size > LCD_WIDTH) || (y+size > LCD_HEIGHT)) return;	//OUT OF BOUNDS!
+
+	ili9341_set_window(x, y, size*scale-1, size*scale-1);
+	GPIOA->ODR &= ~GPIO_ODR_ODR2;
+	for (int row = 0; row < size; ++row)
+	{
+		for (int s = 0; s < scale; ++s)
+		for (int col = 0; col < size*scale; ++col)
+		{
+			uint16_t pixel = bitmap[row*size + (col / scale)];
+//			if ( pixel != ILI9341_BLACK )
+//			{
+				SPI1_write(pixel >> 8);
+				SPI1_write(pixel);
+//			}
+//			else
+//			{
+//				SPI1_write(ILI9341_WHITE >> 8);
+//				SPI1_write(ILI9341_WHITE);
+//			}
+		}
+	}
+	GPIOA->ODR |= GPIO_ODR_ODR2;
 }
 
-void writeData(uint8_t data)
+#define FONT_SIZE  5
+#define FONT_SCALE 5
+void ili9341_print(uint16_t x, uint16_t y, char const * string, uint8_t length)
 {
-	HAL_GPIO_WritePin(GPIOA, LCD_DC, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_RESET);
-	HAL_SPI_Transmit(&hspi1, &data, 1, 1);
-	HAL_GPIO_WritePin(GPIOA, LCD_CS, GPIO_PIN_SET);
-//	GPIOA->CRH
+	if((x+FONT_SIZE*FONT_SCALE > LCD_WIDTH) || (y+FONT_SIZE*FONT_SCALE > LCD_HEIGHT)) return;	//OUT OF BOUNDS!
+
+	uint16_t posOffset = 0;
+	while (posOffset < length)
+	{
+		uint16_t offset = string[posOffset] - 0x30;
+		offset *= 25;
+		ili9341_set_window(x + posOffset*FONT_SIZE*FONT_SCALE, y, FONT_SIZE*FONT_SCALE-1, FONT_SIZE*FONT_SCALE-1);
+		GPIOA->ODR &= ~GPIO_ODR_ODR2;
+		for (int row = 0; row < FONT_SIZE; ++ row)
+		{
+			for (int i = 0; i < FONT_SCALE; ++i)
+			for (int col = 0; col < FONT_SIZE*FONT_SCALE; ++col)
+			{
+				uint16_t fontPixel = font[ offset + (row*FONT_SIZE + (col / FONT_SCALE))  ];
+				fontPixel |= (fontPixel << 8);
+				SPI1_write(fontPixel >> 8);
+				SPI1_write(fontPixel);
+			}
+		}
+		GPIOA->ODR |= GPIO_ODR_ODR2;
+		posOffset++;
+	}
 }
 
 void lcdReset(void)
@@ -430,15 +537,6 @@ void lcdInit(void)
 	//STARTING ROTATION
 	ILI9341_Set_Rotation(SCREEN_VERTICAL_1);
 
-}
-
-uint8_t ILI9341_SPI_Send(unsigned char data)
-{
-	HAL_SPI_Transmit(&hspi1, &data, 1, 1);
-//	while (!(SPI1->SR & SPI_SR_TXE)) {}
-//	*((volatile uint8_t*)&SPI1->DR) = data; // cast is necessary cause DR is uint16_t
-//	while (SPI1->SR & SPI_SR_BSY) {}
-//	return SPI1->DR;
 }
 
 void ili9341_set_window(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
