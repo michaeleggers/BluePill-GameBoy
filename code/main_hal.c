@@ -235,7 +235,7 @@ int main(void)
     int16_t yVel = 1;
     int16_t xPos = 1;
     int16_t yPos = 1;
-    uint16_t scaler = 1;
+    uint16_t scaler = 3;
     while (1)
     {
         //	  ili3941_fillscreen(ILI9341_RED);
@@ -269,23 +269,24 @@ int main(void)
         // dirt buffer window last frame
         uint16_t dbX = xPos/8;
         uint16_t dbY = 40*yPos;
-        for (int i=0; i<8*8/8; ++i) // bitmap 8px high -> go through 8 rows
+        for (int i=0; i<8*scaler; ++i) // bitmap 8px high -> go through 8 rows
         {
-            uint8_t bitPos = xPos % 8; // bitpos in this column (px also starts with 0 so mod7 not mod8).
+            uint8_t bitPos = xPos % 8; // bitpos in this column
             uint8_t *dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX] );
-            for (int y = bitPos; y < 8; ++y)
+            uint16_t bitsLeft = 8*scaler;
+            uint16_t xPosTemp = xPos;
+            uint16_t byteColumns = scaler+1;
+            for (uint16_t column = 0; column < byteColumns; ++column)
             {
-                *dirtBufferByte |= (0x01 << (7 - y));
-                //ili9341_draw_pixel(xPos + y, yPos + i, ILI9341_RED);
-            }
-            if (bitPos)
-            {
-                dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+1] );
-                for (int y = 0; y < bitPos; ++y)
+                dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+column] );
+                for (int y = bitPos; (y < 8) && (bitsLeft > 0); ++y)
                 {
-                    *dirtBufferByte |= (0x01 << (7 - y));
-                    //ili9341_draw_pixel(xPos + y, yPos + i, ILI9341_RED);
+                    *dirtBufferByte |= (0x80 >> y);
+                    bitsLeft--;
+                    //ili9341_draw_pixel(xPos+column*8 + y, yPos + i, ILI9341_RED);
                 }
+                xPosTemp += (8-bitPos); // align it to next byte
+                bitPos = 0;//xPosTemp % 8;
             }
         }
         
@@ -300,48 +301,65 @@ int main(void)
         // dirt buffer window new frame
         uint16_t dbXnew = xPos/8;
         uint16_t dbYnew = 40*yPos;
-        for (int i=0; i<8*8/8; ++i)
+        for (int i=0; i<8*scaler; ++i) // bitmap 8px high -> go through 8 rows
         {
+            uint8_t bitPos = xPos % 8; // bitpos in this column
             uint8_t *dirtBufferByte = &( dirty_buffer[dbYnew + i*40 + dbXnew] );
-            uint8_t bitPos = xPos % 8;
-            for (int y=bitPos; y < 8; ++y)
+            uint16_t bitsLeft = 8*scaler;
+            uint16_t xPosTemp = xPos;
+            uint16_t byteColumns = scaler+1;
+            for (uint16_t column = 0; column < byteColumns; ++column)
             {
-                *dirtBufferByte &= ~(0x01 << (7 - y));
-                //ili9341_draw_pixel(xPos + y, yPos + i, ILI9341_GREEN);
-            }
-            if (bitPos)
-            {
-                dirtBufferByte = &( dirty_buffer[dbYnew + i*40 + dbXnew+1] );
-                for (int y = 0; y < bitPos; ++y)
+                dirtBufferByte = &( dirty_buffer[dbYnew + i*40 + dbXnew+column] );
+                for (int y = bitPos; (y < 8) && (bitsLeft > 0); ++y)
                 {
-                    *dirtBufferByte &= ~(0x01 << (7 - y));
-                    //ili9341_draw_pixel(xPos + y, yPos + i, ILI9341_GREEN);
+                    *dirtBufferByte &= ~(0x80 >> y);
+                    bitsLeft--;
+                    //ili9341_draw_pixel(xPos+column*8 + y, yPos + i, ILI9341_GREEN);
                 }
+                xPosTemp += (8-bitPos); // align it to next byte
+                bitPos = 0;//xPosTemp % 8;
             }
         }
+        
         // finally, draw the actual bitmap at its new location
         ili9341_draw_bitmap(xPos, yPos, scaler, 8, box);
         
         // cleanup: clear the dirt buffer from remaining old frame and draw background color
-        for (int i=0; i < 8; ++i)
+        for (int i=0; i<8*scaler; ++i) // bitmap 8px high -> go through 8 rows
         {
+            uint8_t bitPos = oldPosX % 8; // bitpos in this column
             uint8_t *dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX] );
-            uint8_t bitPos = oldPosX % 8;
+            uint16_t bitsLeft = 8*scaler;
+            uint16_t xPosTemp = oldPosX;
             uint8_t xOffset = 0;
-            for (int y = bitPos; y < 8; ++y)
+            uint16_t byteColumns = scaler+1;
+            for (uint16_t column = 0; column < byteColumns; ++column)
             {
-                uint8_t dbMask = (0x01 << (7 - y));
-                if ( (*dirtBufferByte & dbMask) == dbMask )
+                dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+column] );
+                for (int y = bitPos; (y < 8) && (bitsLeft > 0); ++y)
                 {
-                    *dirtBufferByte &= ~dbMask;
-                    ili9341_draw_pixel(oldPosX + xOffset, oldPosY + i, ILI9341_BLACK);
+                    uint8_t dbMask = (0x80 >> y);
+                    if ( (*dirtBufferByte & dbMask) == dbMask )
+                    {
+                        *dirtBufferByte &= ~dbMask;
+                        ili9341_draw_pixel(oldPosX + xOffset, oldPosY + i, ILI9341_BLACK);
+                    }
+                    bitsLeft--;
+                    xOffset++;
                 }
-                xOffset++;
+                xPosTemp += (8-bitPos); // align it to next byte
+                bitPos = 0;//xPosTemp % 8;
             }
-            if (bitPos)
+        }
+        
+        /*
+            for (int i=0; i < 8*scaler; ++i)
             {
-                dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+1] );
-                for (int y = 0; y < bitPos; ++y)
+                uint8_t *dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX] );
+                uint8_t bitPos = oldPosX % 8;
+                uint8_t xOffset = 0;
+                for (int y = bitPos; y < 8; ++y)
                 {
                     uint8_t dbMask = (0x01 << (7 - y));
                     if ( (*dirtBufferByte & dbMask) == dbMask )
@@ -351,12 +369,25 @@ int main(void)
                     }
                     xOffset++;
                 }
+                if (bitPos)
+                {
+                    dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+1] );
+                    for (int y = 0; y < bitPos; ++y)
+                    {
+                        uint8_t dbMask = (0x01 << (7 - y));
+                        if ( (*dirtBufferByte & dbMask) == dbMask )
+                        {
+                            *dirtBufferByte &= ~dbMask;
+                            ili9341_draw_pixel(oldPosX + xOffset, oldPosY + i, ILI9341_BLACK);
+                        }
+                        xOffset++;
+                    }
+                }
             }
-        }
+            */
         
         
-        
-        HAL_Delay(30);
+        //HAL_Delay(30);
         
         //	  for (int row = 0; row < LCD_HEIGHT; row += 20)
         //	  {
