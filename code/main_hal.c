@@ -171,6 +171,15 @@ int main(void)
     
     ili3941_fillscreen(ILI9341_BLACK);
     
+    Bitmap_t tanyaBMP = {
+        0, 0,
+        0, 0,
+        16, 16,
+        4,
+        1, 1,
+        tanya
+    };
+    
     Bitmap_t boxes[5];
     for (int i = 0; i < 5; ++i)
     {
@@ -180,7 +189,7 @@ int main(void)
             xPos, yPos,
             xPos, yPos,
             8, 8,
-            2,
+            3,
             1, 1,
             box
         };
@@ -220,49 +229,26 @@ int main(void)
             ili9341_draw_bitmap(&boxBitmap);
             boxes[i] = boxBitmap;
         }
-        /*
-            for (int i=0; i < 8*scaler; ++i)
-            {
-                uint8_t *dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX] );
-                uint8_t bitPos = oldPosX % 8;
-                uint8_t xOffset = 0;
-                for (int y = bitPos; y < 8; ++y)
-                {
-                    uint8_t dbMask = (0x01 << (7 - y));
-                    if ( (*dirtBufferByte & dbMask) == dbMask )
-                    {
-                        *dirtBufferByte &= ~dbMask;
-                        ili9341_draw_pixel(oldPosX + xOffset, oldPosY + i, ILI9341_BLACK);
-                    }
-                    xOffset++;
-                }
-                if (bitPos)
-                {
-                    dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+1] );
-                    for (int y = 0; y < bitPos; ++y)
-                    {
-                        uint8_t dbMask = (0x01 << (7 - y));
-                        if ( (*dirtBufferByte & dbMask) == dbMask )
-                        {
-                            *dirtBufferByte &= ~dbMask;
-                            ili9341_draw_pixel(oldPosX + xOffset, oldPosY + i, ILI9341_BLACK);
-                        }
-                        xOffset++;
-                    }
-                }
-            }
-            */
         
+        tanyaBMP.xPos += tanyaBMP.xVel;
+        tanyaBMP.yPos += tanyaBMP.yVel;
+        if (tanyaBMP.yPos + tanyaBMP.height*tanyaBMP.scale  >= LCD_HEIGHT) 
+        {
+            tanyaBMP.yVel *= -1;
+        }
+        if (tanyaBMP.yPos < 0) { tanyaBMP.yVel *= -1; tanyaBMP.yPos = 0; }
+        if (tanyaBMP.xPos + tanyaBMP.width*tanyaBMP.scale >= LCD_WIDTH) 
+        {
+            tanyaBMP.xVel *= -1;
+        }
+        if (tanyaBMP.xPos < 0) { tanyaBMP.xVel *= -1; tanyaBMP.xPos = 0; }
+        ili9341_draw_bitmap(&tanyaBMP);
         
-        //HAL_Delay(40);
-        
-        //	  for (int row = 0; row < LCD_HEIGHT; row += 20)
-        //	  {
-        //		  ili9341_fill_rect(0, row, LCD_WIDTH, 1, ILI9341_BLUE);
-        //	  }
+        //HAL_Delay(100);
     }
 }
 
+/* bitmap width, height MUST be a multiple of 8 pixels!!! */
 void ili9341_draw_bitmap(Bitmap_t * bitmap)
 {
     uint16_t xPos = bitmap->xPos;
@@ -282,7 +268,7 @@ void ili9341_draw_bitmap(Bitmap_t * bitmap)
         uint8_t bitPos = xPosOld % 8; // bitpos in this column
         uint8_t *dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX] );
         uint16_t bitsLeft = width*scale;
-        uint16_t byteColumns = scale+1;
+        uint16_t byteColumns = (scale*width/8)+1;
         for (uint16_t column = 0; column < byteColumns; ++column)
         {
             dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+column] );
@@ -304,7 +290,7 @@ void ili9341_draw_bitmap(Bitmap_t * bitmap)
         uint8_t bitPos = xPos % 8; // bitpos in this column
         uint8_t *dirtBufferByte = &( dirty_buffer[dbYnew + i*40 + dbXnew] );
         uint16_t bitsLeft = width*scale;
-        uint16_t byteColumns = scale+1;
+        uint16_t byteColumns = (scale*width/8)+1;
         for (uint16_t column = 0; column < byteColumns; ++column)
         {
             dirtBufferByte = &( dirty_buffer[dbYnew + i*40 + dbXnew+column] );
@@ -325,7 +311,7 @@ void ili9341_draw_bitmap(Bitmap_t * bitmap)
         uint8_t *dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX] );
         uint16_t bitsLeft = width*scale;
         uint8_t xOffset = 0;
-        uint16_t byteColumns = scale+1;
+        uint16_t byteColumns = (scale*width/8)+1;
         for (uint16_t column = 0; column < byteColumns; ++column)
         {
             dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+column] );
