@@ -31,7 +31,7 @@ static const uint8_t font[] = {
     0x00, 0x00, 0xFF, 0x00, 0x00,
 };
 
-static const uint16_t box[] = {
+static uint16_t gImage_box[] = {
     0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7,
     0x8aa7, 0x61c6, 0x61c6, 0x61c6, 0x61c6, 0x61c6, 0x8aa7, 0x8aa7,
     0x8aa7, 0x61c6, 0x61c6, 0x61c6, 0x61c6, 0x8aa7, 0x61c6, 0x8aa7,
@@ -59,6 +59,51 @@ static const uint16_t tanya[] = {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xee6f, 0x0000, 0xee6f, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xee6f, 0x0000, 0xee6f, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xa986, 0xa986, 0x0000, 0xa986, 0xa986, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
+};
+
+static uint8_t gImage_stone_floor[512] = {
+    0X83,0XF0,0X83,0XF0,0X6B,0X4D,0X6B,0X4D,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X84,0X10,
+    0X84,0X10,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,
+    0X83,0XF0,0X83,0XF0,0X83,0XF0,0X6B,0X4D,0X7B,0XCF,0X7B,0XCF,0X7B,0XCF,0X84,0X10,
+    0X6B,0X4D,0X6B,0X4D,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,
+    0X83,0XF0,0X83,0XF0,0X83,0XF0,0X7B,0XCF,0X7B,0XCF,0X84,0X10,0X84,0X10,0X84,0X10,
+    0X6B,0X4D,0X6B,0X4D,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,
+    0X83,0XF0,0X83,0XF0,0X7B,0XCF,0X7B,0XCF,0X84,0X10,0X84,0X10,0X6B,0X4D,0X6B,0X4D,
+    0X6B,0X4D,0X6B,0X4D,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,
+    0X83,0XF0,0X6B,0X4D,0X83,0XF0,0X84,0X10,0X84,0X10,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,
+    0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,
+    0X6B,0X4D,0X6B,0X4D,0X83,0XF0,0X83,0XF0,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,
+    0X6B,0X4D,0X6B,0X4D,0X83,0XF0,0X6B,0X4D,0X6B,0X4D,0X83,0XF0,0X83,0XF0,0X83,0XF0,
+    0X6B,0X4D,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,
+    0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,
+    0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,
+    0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X6B,0X4D,0X7B,0XCF,0X83,0XF0,
+    0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X7B,0XCF,0X6B,0X4D,0X7B,0XCF,
+    0X83,0XF0,0X83,0XF0,0X83,0XF0,0X6B,0X4D,0X6B,0X4D,0X7B,0XCF,0X7B,0XCF,0X6B,0X4D,
+    0X83,0XF0,0X83,0XF0,0X83,0XF0,0X7B,0XCF,0X7B,0XCF,0X6B,0X4D,0X84,0X10,0X6B,0X4D,
+    0X83,0XF0,0X83,0XF0,0X6B,0X4D,0X7B,0XCF,0X7B,0XCF,0X84,0X10,0X6B,0X4D,0X6B,0X4D,
+    0X83,0XF0,0X83,0XF0,0X7B,0XCF,0X7B,0XCF,0X6B,0X4D,0X84,0X10,0X6B,0X4D,0X6B,0X4D,
+    0X83,0XF0,0X6B,0X4D,0X6B,0X4D,0X7B,0XCF,0X84,0X10,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,
+    0X83,0XF0,0X83,0XF0,0X6B,0X4D,0X6B,0X4D,0X84,0X10,0X6B,0X4D,0X6B,0X4D,0X83,0XF0,
+    0X6B,0X4D,0X6B,0X4D,0X84,0X10,0X84,0X10,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X83,0XF0,
+    0X83,0XF0,0X83,0XF0,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X83,0XF0,0X83,0XF0,
+    0X6B,0X4D,0X84,0X10,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X83,0XF0,
+    0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,
+    0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X84,0X10,0X84,0X10,0X84,0X10,0X83,0XF0,
+    0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,
+    0X83,0XF0,0X83,0XF0,0X6B,0X4D,0X84,0X10,0X84,0X10,0X84,0X10,0X84,0X10,0X6B,0X4D,
+    0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,0X83,0XF0,
+    0X83,0XF0,0X83,0XF0,0X83,0XF0,0X6B,0X4D,0X6B,0X4D,0X6B,0X4D,0X83,0XF0,0X6B,0X4D
+};
+
+static uint8_t map[70] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x0B, 0x0B, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x0B, 0x0B, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0B,
 };
 
 static uint8_t dirty_buffer[9600] = { 0 };
@@ -104,6 +149,12 @@ static uint8_t dirty_buffer[9600] = { 0 };
 volatile uint16_t LCD_HEIGHT = 240;
 volatile uint16_t LCD_WIDTH =  320;
 
+typedef enum BitmapByteConfig
+{
+    BMP_RGB565_16,
+    BMP_RGB565_8
+} BitmapByteConfig;
+
 typedef struct Bitmap_t
 {
     int16_t xPos, yPos;
@@ -114,6 +165,7 @@ typedef struct Bitmap_t
     int16_t xVel; // NOTE(Michael): move later into Entity_t or something like that
     int16_t yVel;
     void *color;
+    BitmapByteConfig config;
 } Bitmap_t;
 
 void SystemClock_Config(void);
@@ -128,6 +180,7 @@ void ili3941_fillscreen(uint16_t color);
 void ILI9341_Set_Rotation(uint8_t Rotation);
 void ili9341_print(uint16_t x, uint16_t y, char const * string, uint8_t length);
 void ili9341_draw_bitmap(Bitmap_t * bitmap);
+void draw_static_bitmap(Bitmap_t * bitmap, uint16_t xPos, uint16_t yPos, uint16_t scale);
 
 static inline uint8_t SPI1_write(uint8_t data)
 {
@@ -171,31 +224,44 @@ int main(void)
     
     ili3941_fillscreen(ILI9341_BLACK);
     
-    Bitmap_t tanyaBMP = {
+    Bitmap_t stone_floor = {
         0, 0,
         0, 0,
         16, 16,
-        4,
-        1, 1,
-        tanya
+        2,
+        0, 0,
+        gImage_stone_floor,
+        BMP_RGB565_8
     };
     
-    Bitmap_t boxes[5];
-    for (int i = 0; i < 5; ++i)
+    Bitmap_t box = {
+        0, 0,
+        0, 0,
+        8, 8,
+        4,
+        0, 0,
+        gImage_box,
+        BMP_RGB565_16
+    };
+    
+    // draw map
+    for (int row = 0; row < 7; ++row)
     {
-        int16_t xPos = (rand()/(float)RAND_MAX)*LCD_WIDTH;
-        int16_t yPos = (rand()/(float)RAND_MAX)*LCD_HEIGHT;
-        Bitmap_t boxBitmap = {
-            xPos, yPos,
-            xPos, yPos,
-            8, 8,
-            3,
-            1, 1,
-            box
-        };
-        boxes[i] = boxBitmap;
+        for (int col = 0; col < 10; ++col)
+        {
+            uint8_t tile = map[10*row + col];
+            if (tile == 0x00)
+            {
+                draw_static_bitmap(&stone_floor, 32*col, 32*row, 2);
+            }
+            else if (tile == 0x0B)
+            {
+                draw_static_bitmap(&box, 32*col, 32*row, 4);
+            }
+        }
     }
     
+    //draw_static_bitmap(&stone_floor);
     while (1)
     {
         // read joystick.
@@ -204,45 +270,6 @@ int main(void)
         //while ( ADC1->SR & ADC_SR_EOC ) {}
         //uint16_t conversion = ADC1->DR;
         
-        
-        // bitmap pos update
-        for (int i = 0; i < 5; ++i)
-        {
-            Bitmap_t boxBitmap = boxes[i];
-            boxBitmap.xPos += boxBitmap.xVel;
-            boxBitmap.yPos += boxBitmap.yVel;
-            
-            if (boxBitmap.yPos + boxBitmap.height*boxBitmap.scale  >= LCD_HEIGHT) 
-            {
-                boxBitmap.yVel *= -1;
-            }
-            if (boxBitmap.yPos < 0) { boxBitmap.yVel *= -1; boxBitmap.yPos = 0; }
-            if (boxBitmap.xPos + boxBitmap.width*boxBitmap.scale >= LCD_WIDTH) 
-            {
-                boxBitmap.xVel *= -1;
-            }
-            if (boxBitmap.xPos < 0) { boxBitmap.xVel *= -1; boxBitmap.xPos = 0; }
-            //if (boxBitmap.scale > 5 || boxBitmap.scale < 1) BoxScaler *= -1;
-            //boxBitmap.scale += BoxScaler;
-            
-            // finally, draw the actual bitmap at its new location
-            ili9341_draw_bitmap(&boxBitmap);
-            boxes[i] = boxBitmap;
-        }
-        
-        tanyaBMP.xPos += tanyaBMP.xVel;
-        tanyaBMP.yPos += tanyaBMP.yVel;
-        if (tanyaBMP.yPos + tanyaBMP.height*tanyaBMP.scale  >= LCD_HEIGHT) 
-        {
-            tanyaBMP.yVel *= -1;
-        }
-        if (tanyaBMP.yPos < 0) { tanyaBMP.yVel *= -1; tanyaBMP.yPos = 0; }
-        if (tanyaBMP.xPos + tanyaBMP.width*tanyaBMP.scale >= LCD_WIDTH) 
-        {
-            tanyaBMP.xVel *= -1;
-        }
-        if (tanyaBMP.xPos < 0) { tanyaBMP.xVel *= -1; tanyaBMP.xPos = 0; }
-        ili9341_draw_bitmap(&tanyaBMP);
         
         //HAL_Delay(100);
     }
@@ -258,7 +285,7 @@ void ili9341_draw_bitmap(Bitmap_t * bitmap)
     uint16_t width = bitmap->width;
     uint16_t height = bitmap->height;
     uint16_t scale = bitmap->scale;
-    uint16_t *color = (uint16_t *)(bitmap->color);
+    BitmapByteConfig config = bitmap->config;
     
     // dirt buffer window last frame
     uint16_t dbX = xPosOld/8;
@@ -333,30 +360,104 @@ void ili9341_draw_bitmap(Bitmap_t * bitmap)
     // draw to device
     if((xPos + width*scale > LCD_WIDTH) || (yPos + height*scale > LCD_HEIGHT)) return;	//OUT OF BOUNDS!
     ili9341_set_window(xPos, yPos, width*scale-1, height*scale-1);
+    
     GPIOA->ODR &= ~GPIO_ODR_ODR2;
-    for (int row = 0; row < height; ++row)
+    switch (config)
     {
-        for (int s = 0; s < scale; ++s)
-            for (int col = 0; col < width*scale; ++col)
+        case BMP_RGB565_16:
         {
-            uint16_t pixel = color[row*height + (col / scale)];
-            //			if ( pixel != ILI9341_BLACK )
-            //			{
-            SPI1_write(pixel >> 8);
-            SPI1_write(pixel);
-            //			}
-            //			else
-            //			{
-            //				SPI1_write(ILI9341_WHITE >> 8);
-            //				SPI1_write(ILI9341_WHITE);
-            //			}
+            uint16_t *color = (uint16_t *)(bitmap->color);
+            for (int row = 0; row < height; ++row)
+            {
+                for (int s = 0; s < scale; ++s)
+                    for (int col = 0; col < width*scale; ++col)
+                {
+                    uint16_t pixel = color[row*width + (col / scale)];
+                    SPI1_write(pixel >> 8);
+                    SPI1_write(pixel);
+                }
+            }
         }
+        break;
+        
+        case BMP_RGB565_8:
+        {
+            uint8_t *color = (uint8_t *)(bitmap->color);
+            for (int row = 0; row < height; ++row)
+            {
+                for (int s = 0; s < scale; ++s)
+                    for (int col = 0; col < 2*width; col += 2)
+                {
+                    uint8_t pixelH = color[row*width*2 + col];
+                    uint8_t pixelL = color[row*width*2 + col + 1];
+                    for (int k = 0; k < scale; ++k)
+                    {
+                        SPI1_write(pixelH);
+                        SPI1_write(pixelL);
+                    }
+                }
+            }
+        }
+        break;
     }
     GPIOA->ODR |= GPIO_ODR_ODR2;
+    
     
     // remember old bitmap pos for convinience
     bitmap->xPosOld = bitmap->xPos;
     bitmap->yPosOld = bitmap->yPos;
+}
+
+void draw_static_bitmap(Bitmap_t * bitmap, uint16_t xPos, uint16_t yPos, uint16_t scale)
+{
+    uint16_t width = bitmap->width;
+    uint16_t height = bitmap->height;
+    BitmapByteConfig config = bitmap->config;
+    
+    // draw to device
+    if((xPos + width*scale > LCD_WIDTH) || (yPos + height*scale > LCD_HEIGHT)) return;	//OUT OF BOUNDS!
+    ili9341_set_window(xPos, yPos, width*scale-1, height*scale-1);
+    
+    GPIOA->ODR &= ~GPIO_ODR_ODR2;
+    switch (config)
+    {
+        case BMP_RGB565_16:
+        {
+            uint16_t *color = (uint16_t *)(bitmap->color);
+            for (int row = 0; row < height; ++row)
+            {
+                for (int s = 0; s < scale; ++s)
+                    for (int col = 0; col < width*scale; ++col)
+                {
+                    uint16_t pixel = color[row*width + (col / scale)];
+                    SPI1_write(pixel >> 8);
+                    SPI1_write(pixel);
+                }
+            }
+        }
+        break;
+        
+        case BMP_RGB565_8:
+        {
+            uint8_t *color = (uint8_t *)(bitmap->color);
+            for (int row = 0; row < height; ++row)
+            {
+                for (int s = 0; s < scale; ++s)
+                    for (int col = 0; col < 2*width; col += 2)
+                {
+                    uint8_t pixelH = color[row*width*2 + col];
+                    uint8_t pixelL = color[row*width*2 + col + 1];
+                    for (int k = 0; k < scale; ++k)
+                    {
+                        SPI1_write(pixelH);
+                        SPI1_write(pixelL);
+                    }
+                }
+            }
+        }
+        break;
+    }
+    GPIOA->ODR |= GPIO_ODR_ODR2;
 }
 
 #define FONT_SIZE  5
@@ -741,9 +842,9 @@ static void MX_GPIO_Init(void)
 // HAL-code from STM
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
+* @brief  This function is executed in case of error occurrence.
+* @retval None
+*/
 void Error_Handler(void)
 {
     /* USER CODE BEGIN Error_Handler_Debug */
@@ -754,12 +855,12 @@ void Error_Handler(void)
 
 #ifdef  USE_FULL_ASSERT
 /**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
+* @brief  Reports the name of the source file and the source line number
+*         where the assert_param error has occurred.
+* @param  file: pointer to the source file name
+* @param  line: assert_param error line source number
+* @retval None
+*/
 void assert_failed(uint8_t *file, uint32_t line)
 { 
     /* USER CODE BEGIN 6 */
