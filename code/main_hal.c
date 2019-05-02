@@ -31,7 +31,7 @@ static const uint8_t font[] = {
     0x00, 0x00, 0xFF, 0x00, 0x00,
 };
 
-static uint16_t gImage_box[] = {
+static int16_t gImage_box[] = {
     0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7,
     0x8aa7, 0x61c6, 0x61c6, 0x61c6, 0x61c6, 0x61c6, 0x8aa7, 0x8aa7,
     0x8aa7, 0x61c6, 0x61c6, 0x61c6, 0x61c6, 0x8aa7, 0x61c6, 0x8aa7,
@@ -42,7 +42,7 @@ static uint16_t gImage_box[] = {
     0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7, 0x8aa7
 };
 
-static const uint16_t tanya[] = {
+static const int16_t tanya[] = {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x39c7, 0x39c7, 0x39c7, 0xf1e4, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -146,8 +146,8 @@ static uint8_t dirty_buffer[9600] = { 0 };
 #define RST_HIGH  (GPIOA->ODR |= GPIO_ODR_ODR1)
 #define RST_LOW   (GPIOA->ODR &= ~GPIO_ODR_ODR1)
 
-volatile uint16_t LCD_HEIGHT = 240;
-volatile uint16_t LCD_WIDTH =  320;
+volatile int16_t LCD_HEIGHT = 240;
+volatile int16_t LCD_WIDTH =  320;
 
 typedef enum BitmapByteConfig
 {
@@ -159,33 +159,46 @@ typedef struct Bitmap_t
 {
     int16_t xPos, yPos;
     int16_t xPosOld, yPosOld;
-    uint16_t width;
-    uint16_t height;
-    uint16_t scale;
+    int16_t width;
+    int16_t height;
+    int16_t scale;
     int16_t xVel; // NOTE(Michael): move later into Entity_t or something like that
     int16_t yVel;
     void *color;
     BitmapByteConfig config;
 } Bitmap_t;
 
+typedef struct Pipe_t
+{
+    int16_t xPos, yPos;
+    int16_t width, height;
+    int16_t xPosOld;
+} Pipe_t;
+
+typedef struct Pipepair_t
+{
+    Pipe_t upper;
+    Pipe_t lower;
+} Pipepair_t;
+
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void ADC1_init(void);
 void lcdInit(void);
-void ili9341_set_window(uint16_t x, uint16_t y, uint16_t width, uint16_t height);
-void ili9341_draw_pixel(uint16_t x, uint16_t y, uint16_t color);
-void ili9341_fill_rect(uint16_t x,uint16_t y, uint16_t width, uint16_t height, uint16_t color);
-void ili3941_fillscreen(uint16_t color);
+void ili9341_set_window(int16_t x, int16_t y, int16_t width, int16_t height);
+void ili9341_draw_pixel(int16_t x, int16_t y, int16_t color);
+void ili9341_fill_rect(int16_t x, int16_t y, int16_t width, int16_t height, int16_t color);
+void ili3941_fillscreen(int16_t color);
 void ILI9341_Set_Rotation(uint8_t Rotation);
-void ili9341_print(uint16_t x, uint16_t y, char const * string, uint8_t length);
+void ili9341_print(int16_t x, int16_t y, char const * string, uint8_t length);
 void ili9341_draw_bitmap(Bitmap_t * bitmap);
-void draw_static_bitmap(Bitmap_t * bitmap, uint16_t xPos, uint16_t yPos, uint16_t scale);
+void draw_static_bitmap(Bitmap_t * bitmap, int16_t xPos, int16_t yPos, int16_t scale);
 
 static inline uint8_t SPI1_write(uint8_t data)
 {
 	while (!(SPI1->SR & SPI_SR_TXE)) {}
-    *((volatile uint8_t*)&SPI1->DR) = data; // cast is necessary cause DR is uint16_t
+    *((volatile uint8_t*)&SPI1->DR) = data; // cast is necessary cause DR is int16_t
     while (SPI1->SR & SPI_SR_BSY) {}
     return SPI1->DR;
 }
@@ -209,6 +222,7 @@ static inline void SPI1_writeCmd(uint8_t cmd)
 	GPIOA->ODR |= GPIO_ODR_ODR2;
 }
 
+
 int main(void)
 {
     
@@ -222,7 +236,35 @@ int main(void)
     //ADC1_init();
     lcdInit();
     
-    ili3941_fillscreen(ILI9341_BLACK);
+    ili3941_fillscreen(ILI9341_BLUE);
+    
+#define PIPE_PAIR_COUNT 1
+    Pipepair_t pipePairs[PIPE_PAIR_COUNT];
+    Pipe_t pipe1 = { 
+        320, 0,
+        20, 100,
+        320
+    };
+    
+    Pipe_t pipe2 = { 
+        320, 140,
+        20, 100,
+        320
+    };
+    Pipe_t pipe3 = pipe1;
+    pipe3.xPos += 200;
+    Pipe_t pipe4 = pipe2;
+    pipe4.xPos += 200;
+    Pipepair_t pipePair = {
+        pipe1,
+        pipe2,
+    };
+    Pipepair_t pipePair2 = {
+        pipe3,
+        pipe4
+    };
+    //pipePairs[0] = pipePair;
+    pipePairs[0] = pipePair2;
     
     Bitmap_t stone_floor = {
         0, 0,
@@ -235,15 +277,16 @@ int main(void)
     };
     
     Bitmap_t box = {
-        0, 0,
+        30, 120,
         0, 0,
         8, 8,
-        4,
+        5,
         0, 0,
         gImage_box,
         BMP_RGB565_16
     };
     
+    /*
     // draw map
     for (int row = 0; row < 7; ++row)
     {
@@ -260,43 +303,83 @@ int main(void)
             }
         }
     }
+    */
+    //ili9341_fill_rect(0, 0, 100, 100, ILI9341_GREEN);
     
-    //draw_static_bitmap(&stone_floor);
     while (1)
     {
+        uint8_t buttonState = (GPIOA->IDR & GPIO_IDR_IDR8) == GPIO_IDR_IDR8;
+        if (buttonState)
+        {
+            //box.yPos -= 5;
+        }
+        ili9341_draw_bitmap(&box);
+        for (int i = 0; i < PIPE_PAIR_COUNT; ++i)
+        {
+            Pipepair_t *pipePair = &pipePairs[i];
+            Pipe_t *upper = &pipePair->upper;
+            Pipe_t *lower = &pipePair->lower;
+            // upper
+            upper->xPosOld = upper->xPos;
+            upper->xPos -= 1;
+            int16_t xClear = upper->xPos + upper->width;
+            int16_t widthClear = upper->xPosOld - upper->xPos;
+            ili9341_fill_rect(xClear, upper->yPos, widthClear, upper->height, ILI9341_BLUE);
+            ili9341_fill_rect(upper->xPos, upper->yPos, upper->width, upper->height, ILI9341_GREEN);
+            // lower
+            lower->xPosOld = lower->xPos;
+            lower->xPos -= 1;
+            int16_t xClearLower = lower->xPos + lower->width;
+            int16_t widthClearLower = lower->xPosOld - lower->xPos;
+            ili9341_fill_rect(xClearLower, lower->yPos, widthClearLower, lower->height, ILI9341_BLUE);
+            ili9341_fill_rect(lower->xPos, lower->yPos, lower->width, lower->height, ILI9341_GREEN);
+            if ( (upper->xPos+upper->width) <= 0 )
+            {
+                ili9341_fill_rect(0, upper->yPos, 1, upper->height, ILI9341_BLUE);
+                upper->xPos = 320;
+                ili9341_fill_rect(0, lower->yPos, 1, lower->height, ILI9341_BLUE);
+                lower->xPos = 320;
+                // create new hole
+                int16_t holeY = ((float)rand()/(float)RAND_MAX) * 200; // 40 is hole height!!
+                upper->height = holeY;
+                lower->yPos = holeY+40;
+                lower->height = 240 - lower->yPos;
+            }
+        }
+        
+        //box.yPos++;
         // read joystick.
         // NOTE(Michael): IDRx can only be read in word mode (32bits)
         //ADC1->CR2 |= ADC_CR2_SWSTART;
         //while ( ADC1->SR & ADC_SR_EOC ) {}
-        //uint16_t conversion = ADC1->DR;
+        //int16_t conversion = ADC1->DR;
         
-        
-        //HAL_Delay(100);
+        HAL_Delay(5);
     }
 }
 
 /* bitmap width, height MUST be a multiple of 8 pixels!!! */
 void ili9341_draw_bitmap(Bitmap_t * bitmap)
 {
-    uint16_t xPos = bitmap->xPos;
-    uint16_t yPos = bitmap->yPos;
-    uint16_t xPosOld = bitmap->xPosOld;
-    uint16_t yPosOld = bitmap->yPosOld;
-    uint16_t width = bitmap->width;
-    uint16_t height = bitmap->height;
-    uint16_t scale = bitmap->scale;
+    int16_t xPos = bitmap->xPos;
+    int16_t yPos = bitmap->yPos;
+    int16_t xPosOld = bitmap->xPosOld;
+    int16_t yPosOld = bitmap->yPosOld;
+    int16_t width = bitmap->width;
+    int16_t height = bitmap->height;
+    int16_t scale = bitmap->scale;
     BitmapByteConfig config = bitmap->config;
     
     // dirt buffer window last frame
-    uint16_t dbX = xPosOld/8;
-    uint16_t dbY = 40*yPosOld;
-    for (uint16_t i=0; i<height*scale; ++i) // bitmap 8px high -> go through 8 rows
+    int16_t dbX = xPosOld/8;
+    int16_t dbY = 40*yPosOld;
+    for (int16_t i=0; i<height*scale; ++i) // bitmap 8px high -> go through 8 rows
     {
         uint8_t bitPos = xPosOld % 8; // bitpos in this column
         uint8_t *dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX] );
-        uint16_t bitsLeft = width*scale;
-        uint16_t byteColumns = (scale*width/8)+1;
-        for (uint16_t column = 0; column < byteColumns; ++column)
+        int16_t bitsLeft = width*scale;
+        int16_t byteColumns = (scale*width/8)+1;
+        for (int16_t column = 0; column < byteColumns; ++column)
         {
             dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+column] );
             for (int y = bitPos; (y < 8) && (bitsLeft > 0); ++y)
@@ -310,15 +393,15 @@ void ili9341_draw_bitmap(Bitmap_t * bitmap)
     }
     
     // dirt buffer window new frame
-    uint16_t dbXnew = xPos/8;
-    uint16_t dbYnew = 40*yPos;
-    for (uint16_t i=0; i<height*scale; ++i) // bitmap 8px high -> go through 8 rows
+    int16_t dbXnew = xPos/8;
+    int16_t dbYnew = 40*yPos;
+    for (int16_t i=0; i<height*scale; ++i) // bitmap 8px high -> go through 8 rows
     {
         uint8_t bitPos = xPos % 8; // bitpos in this column
         uint8_t *dirtBufferByte = &( dirty_buffer[dbYnew + i*40 + dbXnew] );
-        uint16_t bitsLeft = width*scale;
-        uint16_t byteColumns = (scale*width/8)+1;
-        for (uint16_t column = 0; column < byteColumns; ++column)
+        int16_t bitsLeft = width*scale;
+        int16_t byteColumns = (scale*width/8)+1;
+        for (int16_t column = 0; column < byteColumns; ++column)
         {
             dirtBufferByte = &( dirty_buffer[dbYnew + i*40 + dbXnew+column] );
             for (int y = bitPos; (y < 8) && (bitsLeft > 0); ++y)
@@ -336,10 +419,10 @@ void ili9341_draw_bitmap(Bitmap_t * bitmap)
     {
         uint8_t bitPos = xPosOld % 8; // bitpos in this column
         uint8_t *dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX] );
-        uint16_t bitsLeft = width*scale;
+        int16_t bitsLeft = width*scale;
         uint8_t xOffset = 0;
-        uint16_t byteColumns = (scale*width/8)+1;
-        for (uint16_t column = 0; column < byteColumns; ++column)
+        int16_t byteColumns = (scale*width/8)+1;
+        for (int16_t column = 0; column < byteColumns; ++column)
         {
             dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+column] );
             for (int y = bitPos; (y < 8) && (bitsLeft > 0); ++y)
@@ -348,7 +431,7 @@ void ili9341_draw_bitmap(Bitmap_t * bitmap)
                 if ( (*dirtBufferByte & dbMask) == dbMask )
                 {
                     *dirtBufferByte &= ~dbMask;
-                    ili9341_draw_pixel(xPosOld + xOffset, yPosOld + i, ILI9341_BLACK);
+                    ili9341_draw_pixel(xPosOld + xOffset, yPosOld + i, ILI9341_BLUE);
                 }
                 bitsLeft--;
                 xOffset++;
@@ -366,13 +449,13 @@ void ili9341_draw_bitmap(Bitmap_t * bitmap)
     {
         case BMP_RGB565_16:
         {
-            uint16_t *color = (uint16_t *)(bitmap->color);
+            int16_t *color = (int16_t *)(bitmap->color);
             for (int row = 0; row < height; ++row)
             {
                 for (int s = 0; s < scale; ++s)
                     for (int col = 0; col < width*scale; ++col)
                 {
-                    uint16_t pixel = color[row*width + (col / scale)];
+                    int16_t pixel = color[row*width + (col / scale)];
                     SPI1_write(pixel >> 8);
                     SPI1_write(pixel);
                 }
@@ -402,16 +485,15 @@ void ili9341_draw_bitmap(Bitmap_t * bitmap)
     }
     GPIOA->ODR |= GPIO_ODR_ODR2;
     
-    
     // remember old bitmap pos for convinience
     bitmap->xPosOld = bitmap->xPos;
     bitmap->yPosOld = bitmap->yPos;
 }
 
-void draw_static_bitmap(Bitmap_t * bitmap, uint16_t xPos, uint16_t yPos, uint16_t scale)
+void draw_static_bitmap(Bitmap_t * bitmap, int16_t xPos, int16_t yPos, int16_t scale)
 {
-    uint16_t width = bitmap->width;
-    uint16_t height = bitmap->height;
+    int16_t width = bitmap->width;
+    int16_t height = bitmap->height;
     BitmapByteConfig config = bitmap->config;
     
     // draw to device
@@ -423,13 +505,13 @@ void draw_static_bitmap(Bitmap_t * bitmap, uint16_t xPos, uint16_t yPos, uint16_
     {
         case BMP_RGB565_16:
         {
-            uint16_t *color = (uint16_t *)(bitmap->color);
+            int16_t *color = (int16_t *)(bitmap->color);
             for (int row = 0; row < height; ++row)
             {
                 for (int s = 0; s < scale; ++s)
                     for (int col = 0; col < width*scale; ++col)
                 {
-                    uint16_t pixel = color[row*width + (col / scale)];
+                    int16_t pixel = color[row*width + (col / scale)];
                     SPI1_write(pixel >> 8);
                     SPI1_write(pixel);
                 }
@@ -462,14 +544,14 @@ void draw_static_bitmap(Bitmap_t * bitmap, uint16_t xPos, uint16_t yPos, uint16_
 
 #define FONT_SIZE  5
 #define FONT_SCALE 5
-void ili9341_print(uint16_t x, uint16_t y, char const * string, uint8_t length)
+void ili9341_print(int16_t x, int16_t y, char const * string, uint8_t length)
 {
     if((x+FONT_SIZE*FONT_SCALE > LCD_WIDTH) || (y+FONT_SIZE*FONT_SCALE > LCD_HEIGHT)) return;	//OUT OF BOUNDS!
     
-    uint16_t posOffset = 0;
+    int16_t posOffset = 0;
     while (posOffset < length)
     {
-        uint16_t offset = string[posOffset] - 0x30;
+        int16_t offset = string[posOffset] - 0x30;
         offset *= 25;
         ili9341_set_window(x + posOffset*FONT_SIZE*FONT_SCALE, y, FONT_SIZE*FONT_SCALE-1, FONT_SIZE*FONT_SCALE-1);
         GPIOA->ODR &= ~GPIO_ODR_ODR2;
@@ -478,7 +560,7 @@ void ili9341_print(uint16_t x, uint16_t y, char const * string, uint8_t length)
             for (int i = 0; i < FONT_SCALE; ++i)
                 for (int col = 0; col < FONT_SIZE*FONT_SCALE; ++col)
             {
-                uint16_t fontPixel = font[ offset + (row*FONT_SIZE + (col / FONT_SCALE))  ];
+                int16_t fontPixel = font[ offset + (row*FONT_SIZE + (col / FONT_SCALE))  ];
                 fontPixel |= (fontPixel << 8);
                 SPI1_write(fontPixel >> 8);
                 SPI1_write(fontPixel);
@@ -678,37 +760,62 @@ void lcdInit(void)
     
 }
 
-void ili9341_set_window(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
+void ili9341_set_window(int16_t x, int16_t y, int16_t width, int16_t height)
 {
+    int16_t clipX = x;
+    int16_t clipY = y;
+    int16_t clipWidth  = width;
+    int16_t clipHeight = height;
+    // clipping
+    if (x+width > LCD_WIDTH)
+    {
+        clipWidth = width - ((x + width) - LCD_WIDTH);
+    }
+    else if (x < 0)
+    {
+        if (x+width < 0) return;
+        clipX = 0;
+        clipWidth = width - (-x);
+    }
+    if (y+height > LCD_HEIGHT)
+    {
+        clipHeight = height - ((y + height) - LCD_HEIGHT);
+    }
+    else if (y < 0)
+    {
+        if (y+height < 0) return;
+        clipY = 0;
+        clipHeight = height - (-y);
+    }
+    
     //ADDRESS COLUMN
     SPI1_writeCmd(0x2A);
     
-    
     //XDATA
-    SPI1_writeData(x>>8);
-    SPI1_writeData(x);
-    SPI1_writeData((x+width)>>8);
-    SPI1_writeData(x+width);
+    SPI1_writeData(clipX>>8);
+    SPI1_writeData(clipX);
+    SPI1_writeData((clipX+clipWidth)>>8);
+    SPI1_writeData(clipX+clipWidth);
     
     //ADDRESS PAGE
     SPI1_writeCmd(0x2B);
     
     //YDATA
-    SPI1_writeData(y>>8);
-    SPI1_writeData(y);
-    SPI1_writeData((y+height)>>8);
-    SPI1_writeData(y+height);
+    SPI1_writeData(clipY>>8);
+    SPI1_writeData(clipY);
+    SPI1_writeData((clipY+clipHeight)>>8);
+    SPI1_writeData(clipY+clipHeight);
     
     //ADDRESS memset
     SPI1_writeCmd(0x2C);
 }
 
-void ili9341_draw_pixel(uint16_t x, uint16_t y, uint16_t color)
+void ili9341_draw_pixel(int16_t x, int16_t y, int16_t color)
 {
     ili9341_fill_rect(x, y, 1, 1, color);
 }
 
-void ili3941_fillscreen(uint16_t color)
+void ili3941_fillscreen(int16_t color)
 {
     ili9341_set_window(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1);
     
@@ -726,9 +833,8 @@ void ili3941_fillscreen(uint16_t color)
     
 }
 
-void ili9341_fill_rect(uint16_t x,uint16_t y, uint16_t width, uint16_t height, uint16_t color)
+void ili9341_fill_rect(int16_t x, int16_t y, int16_t width, int16_t height, int16_t color)
 {
-    if((x+width > LCD_WIDTH) || (y+height > LCD_HEIGHT)) return;	//OUT OF BOUNDS!
     ili9341_set_window(x, y, width-1, height-1);
     
     GPIOA->ODR &= ~GPIO_ODR_ODR2;
@@ -821,10 +927,13 @@ static void MX_GPIO_Init(void)
     // joystick X
     GPIOA->CRL &= ~GPIO_CRL_MODE3;
     GPIOA->CRL &= ~GPIO_CRL_CNF3;
-    
     // joystick Y
     GPIOA->CRL &= ~GPIO_CRL_MODE4;
     GPIOA->CRL &= ~GPIO_CRL_CNF4;
+    
+    // Push Button Switch
+    GPIOA->CRH &= ~GPIO_CRH_MODE8;
+    GPIOA->CRH |= GPIO_CRH_CNF8_0;
     
     // SPI1 SCK, MOSI
     GPIOA->CRL |= (GPIO_CRL_MODE5|GPIO_CRL_MODE7); // both to output PP
@@ -834,10 +943,6 @@ static void MX_GPIO_Init(void)
     GPIOA->CRL &= ~( GPIO_CRL_MODE6|GPIO_CRL_CNF6_1 );
     GPIOA->CRL |= GPIO_CRL_CNF6_0;
 }
-
-
-
-
 
 // HAL-code from STM
 
