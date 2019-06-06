@@ -181,6 +181,13 @@ typedef struct Pipepair_t
     Pipe_t lower;
 } Pipepair_t;
 
+typedef struct Entity_t
+{
+    int16_t xPos, yPos;
+    int16_t xPosOld, yPosOld;
+    Bitmap_t *bitmap;
+} Entity_t;
+
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
@@ -192,7 +199,7 @@ void ili9341_fill_rect(int16_t x, int16_t y, int16_t width, int16_t height, int1
 void ili3941_fillscreen(int16_t color);
 void ILI9341_Set_Rotation(uint8_t Rotation);
 void ili9341_print(int16_t x, int16_t y, char const * string, uint8_t length);
-void ili9341_draw_bitmap(Bitmap_t * bitmap);
+void ili9341_draw_bitmap(Entity_t * entity);
 void draw_static_bitmap(Bitmap_t * bitmap, int16_t xPos, int16_t yPos, int16_t scale);
 
 static inline uint8_t SPI1_write(uint8_t data)
@@ -241,14 +248,14 @@ int main(void)
 #define PIPE_PAIR_COUNT 1
     Pipepair_t pipePairs[PIPE_PAIR_COUNT];
     Pipe_t pipe1 = { 
-        320, 0,
-        20, 100,
+        240, 0,
+        40, 100,
         320
     };
     
     Pipe_t pipe2 = { 
-        320, 140,
-        20, 100,
+        240, 170,
+        40, 150,
         320
     };
     Pipe_t pipe3 = pipe1;
@@ -263,8 +270,8 @@ int main(void)
         pipe3,
         pipe4
     };
-    //pipePairs[0] = pipePair;
-    pipePairs[0] = pipePair2;
+    pipePairs[0] = pipePair;
+    pipePairs[1] = pipePair2;
     
     Bitmap_t stone_floor = {
         0, 0,
@@ -280,10 +287,16 @@ int main(void)
         30, 120,
         0, 0,
         8, 8,
-        5,
+        4,
         0, 0,
         gImage_box,
         BMP_RGB565_16
+    };
+    
+    Entity_t player = {
+        30, 120,
+        0, 0,
+        &box
     };
     
     /*
@@ -308,42 +321,58 @@ int main(void)
     
     while (1)
     {
-        uint8_t buttonState = (GPIOA->IDR & GPIO_IDR_IDR8) == GPIO_IDR_IDR8;
-        if (buttonState)
+        uint8_t buttonPressed = (GPIOA->IDR & GPIO_IDR_IDR8) == GPIO_IDR_IDR8;
+        player.yPos += 2;
+        if (buttonPressed)
         {
-            //box.yPos -= 5;
+            player.yPos -= 5;
+            player.bitmap = &box;
         }
-        ili9341_draw_bitmap(&box);
+        else
+        {
+            player.bitmap = &stone_floor;
+        }
+        
+        if (player.yPos <= 0)
+        {
+            player.yPos = 0;
+        }
+        else if (player.yPos+player.bitmap->height*player.bitmap->scale > LCD_HEIGHT)
+        {
+            player.yPos = player.yPos - ((player.yPos+player.bitmap->height*player.bitmap->scale) - LCD_HEIGHT);
+        }
+        ili9341_draw_bitmap(&player);
+        
         for (int i = 0; i < PIPE_PAIR_COUNT; ++i)
         {
             Pipepair_t *pipePair = &pipePairs[i];
-            Pipe_t *upper = &pipePair->upper;
-            Pipe_t *lower = &pipePair->lower;
-            // upper
-            upper->xPosOld = upper->xPos;
-            upper->xPos -= 1;
-            int16_t xClear = upper->xPos + upper->width;
-            int16_t widthClear = upper->xPosOld - upper->xPos;
-            ili9341_fill_rect(xClear, upper->yPos, widthClear, upper->height, ILI9341_BLUE);
-            ili9341_fill_rect(upper->xPos, upper->yPos, upper->width, upper->height, ILI9341_GREEN);
-            // lower
-            lower->xPosOld = lower->xPos;
-            lower->xPos -= 1;
-            int16_t xClearLower = lower->xPos + lower->width;
-            int16_t widthClearLower = lower->xPosOld - lower->xPos;
-            ili9341_fill_rect(xClearLower, lower->yPos, widthClearLower, lower->height, ILI9341_BLUE);
-            ili9341_fill_rect(lower->xPos, lower->yPos, lower->width, lower->height, ILI9341_GREEN);
-            if ( (upper->xPos+upper->width) <= 0 )
+            Pipe_t *upperPipe = &pipePair->upper;
+            Pipe_t *lowerPipe = &pipePair->lower;
+            // upperPipe
+            upperPipe->xPosOld = upperPipe->xPos;
+            upperPipe->xPos -= 1;
+            int16_t xClear = upperPipe->xPos + upperPipe->width;
+            int16_t widthClear = upperPipe->xPosOld - upperPipe->xPos;
+            ili9341_fill_rect(xClear, upperPipe->yPos, widthClear, upperPipe->height, ILI9341_BLUE);
+            ili9341_fill_rect(upperPipe->xPos, upperPipe->yPos, upperPipe->width, upperPipe->height, ILI9341_GREEN);
+            // lowerPipe
+            lowerPipe->xPosOld = lowerPipe->xPos;
+            lowerPipe->xPos -= 1;
+            int16_t xClearLower = lowerPipe->xPos + lowerPipe->width;
+            int16_t widthClearLower = lowerPipe->xPosOld - lowerPipe->xPos;
+            ili9341_fill_rect(xClearLower, lowerPipe->yPos, widthClearLower, lowerPipe->height, ILI9341_BLUE);
+            ili9341_fill_rect(lowerPipe->xPos, lowerPipe->yPos, lowerPipe->width, lowerPipe->height, ILI9341_GREEN);
+            if ( (upperPipe->xPos+upperPipe->width) <= 0 )
             {
-                ili9341_fill_rect(0, upper->yPos, 1, upper->height, ILI9341_BLUE);
-                upper->xPos = 320;
-                ili9341_fill_rect(0, lower->yPos, 1, lower->height, ILI9341_BLUE);
-                lower->xPos = 320;
+                ili9341_fill_rect(0, upperPipe->yPos, 1, upperPipe->height, ILI9341_BLUE);
+                upperPipe->xPos = 240;
+                ili9341_fill_rect(0, lowerPipe->yPos, 1, lowerPipe->height, ILI9341_BLUE);
+                lowerPipe->xPos = 240;
                 // create new hole
-                int16_t holeY = ((float)rand()/(float)RAND_MAX) * 200; // 40 is hole height!!
-                upper->height = holeY;
-                lower->yPos = holeY+40;
-                lower->height = 240 - lower->yPos;
+                int16_t holeY = ((float)rand()/(float)RAND_MAX) * 200; // max reach of upper pipe before whole starts
+                upperPipe->height = holeY;
+                lowerPipe->yPos = holeY+90;
+                lowerPipe->height = 320 - lowerPipe->yPos;
             }
         }
         
@@ -354,22 +383,32 @@ int main(void)
         //while ( ADC1->SR & ADC_SR_EOC ) {}
         //int16_t conversion = ADC1->DR;
         
-        HAL_Delay(5);
+        //HAL_Delay(1);
     }
 }
 
 /* bitmap width, height MUST be a multiple of 8 pixels!!! */
-void ili9341_draw_bitmap(Bitmap_t * bitmap)
+void ili9341_draw_bitmap(Entity_t * entity)
 {
-    int16_t xPos = bitmap->xPos;
-    int16_t yPos = bitmap->yPos;
-    int16_t xPosOld = bitmap->xPosOld;
-    int16_t yPosOld = bitmap->yPosOld;
+    Bitmap_t *bitmap = entity->bitmap;
+    int16_t xPos = entity->xPos;
+    int16_t yPos = entity->yPos;
+    int16_t xPosOld = entity->xPosOld;
+    int16_t yPosOld = entity->yPosOld;
     int16_t width = bitmap->width;
     int16_t height = bitmap->height;
     int16_t scale = bitmap->scale;
     BitmapByteConfig config = bitmap->config;
     
+    /*
+    if (yPos <= 0)
+    {
+        yPos = 0;
+    }
+    else if (yPos+height > LCD_HEIGHT)
+    {
+        yPos = yPos - ((yPos+height) - LCD_HEIGHT);
+    }
     // dirt buffer window last frame
     int16_t dbX = xPosOld/8;
     int16_t dbY = 40*yPosOld;
@@ -439,9 +478,24 @@ void ili9341_draw_bitmap(Bitmap_t * bitmap)
             bitPos = 0;
         }
     }
-    
+    */
     // draw to device
-    if((xPos + width*scale > LCD_WIDTH) || (yPos + height*scale > LCD_HEIGHT)) return;	//OUT OF BOUNDS!
+    if (yPos > yPosOld)
+    {
+        int16_t clearHeight = (yPos-yPosOld);
+        ili9341_fill_rect(xPosOld, yPosOld, width*scale, clearHeight*scale, ILI9341_BLUE);
+    }
+    if (yPos < yPosOld)
+    {
+        int16_t clearHeight = yPosOld - yPos;
+        ili9341_fill_rect(xPosOld, yPos+scale*height, width*scale, clearHeight, ILI9341_BLUE);
+    }
+    if((xPos + width*scale > LCD_WIDTH) || (yPos + height*scale > LCD_HEIGHT))
+    {
+        entity->xPosOld = xPos;
+        entity->yPosOld = yPos;
+        return;	//OUT OF BOUNDS!
+    }
     ili9341_set_window(xPos, yPos, width*scale-1, height*scale-1);
     
     GPIOA->ODR &= ~GPIO_ODR_ODR2;
@@ -486,8 +540,8 @@ void ili9341_draw_bitmap(Bitmap_t * bitmap)
     GPIOA->ODR |= GPIO_ODR_ODR2;
     
     // remember old bitmap pos for convinience
-    bitmap->xPosOld = bitmap->xPos;
-    bitmap->yPosOld = bitmap->yPos;
+    entity->xPosOld = xPos;
+    entity->yPosOld = yPos;
 }
 
 void draw_static_bitmap(Bitmap_t * bitmap, int16_t xPos, int16_t yPos, int16_t scale)
@@ -756,7 +810,7 @@ void lcdInit(void)
     SPI1_writeCmd(0x29);
     
     //STARTING ROTATION
-    ILI9341_Set_Rotation(SCREEN_HORIZONTAL_1);
+    ILI9341_Set_Rotation(SCREEN_VERTICAL_2);
     
 }
 
