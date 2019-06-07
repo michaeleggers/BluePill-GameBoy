@@ -158,12 +158,12 @@ typedef enum BitmapByteConfig
 typedef struct Bitmap_t
 {
     int16_t xPos, yPos;
-    int16_t xPosOld, yPosOld;
+    //int16_t xPosOld, yPosOld;
     int16_t width;
     int16_t height;
     int16_t scale;
-    int16_t xVel; // NOTE(Michael): move later into Entity_t or something like that
-    int16_t yVel;
+    //int16_t xVel; // NOTE(Michael): move later into Entity_t or something like that
+    //int16_t yVel;
     void *color;
     BitmapByteConfig config;
 } Bitmap_t;
@@ -201,6 +201,10 @@ void ILI9341_Set_Rotation(uint8_t Rotation);
 void ili9341_print(int16_t x, int16_t y, char const * string, uint8_t length);
 void ili9341_draw_bitmap(Entity_t * entity);
 void draw_static_bitmap(Bitmap_t * bitmap, int16_t xPos, int16_t yPos, int16_t scale);
+void showTitleScreen();
+void showScoreScreen();
+void initGameAssets();
+void gameLoop();
 
 static inline uint8_t SPI1_write(uint8_t data)
 {
@@ -229,24 +233,74 @@ static inline void SPI1_writeCmd(uint8_t cmd)
 	GPIOA->ODR |= GPIO_ODR_ODR2;
 }
 
-
-int main(void)
-{
-    
-    HAL_Init();
-    
-    /* Configure the system clock */
-    SystemClock_Config();
-    
-    /* Initialize all configured peripherals */
-    MX_GPIO_Init();
-    //ADC1_init();
-    lcdInit();
-    
-    ili3941_fillscreen(ILI9341_BLUE);
-    
 #define PIPE_PAIR_COUNT 1
-    Pipepair_t pipePairs[PIPE_PAIR_COUNT];
+Pipepair_t pipePairs[PIPE_PAIR_COUNT];
+Bitmap_t stone_floor = {
+    0, 0,
+    //0, 0,
+    16, 16,
+    2,
+    //0, 0,
+    gImage_stone_floor,
+    BMP_RGB565_8
+};
+
+Bitmap_t box = {
+    30, 120,
+    //0, 0,
+    8, 8,
+    4,
+    //0, 0,
+    gImage_box,
+    BMP_RGB565_16
+};
+
+Bitmap_t titleScreenBmp = {
+    0, 0,
+    16, 16,
+    1,
+    &tanya,
+    BMP_RGB565_16
+};
+
+Bitmap_t scoreScreenBmp = {
+    0, 0,
+    16, 16,
+    1,
+    &tanya,
+    BMP_RGB565_16
+};
+
+Entity_t player = {
+    30, 120,
+    0, 0,
+    &box
+};
+
+void showTitleScreen()
+{
+    draw_static_bitmap(&titleScreenBmp, 0, 0, 10);
+    uint8_t buttonPressed = 0;
+    while ( !buttonPressed )
+    {
+        buttonPressed = (GPIOA->IDR & GPIO_IDR_IDR8) == GPIO_IDR_IDR8;
+    }
+    ili3941_fillscreen(ILI9341_BLUE);
+}
+
+void showScoreScreen()
+{
+    draw_static_bitmap(&scoreScreenBmp, 0, 0, 10);
+    uint8_t buttonPressed = 0;
+    while ( !buttonPressed )
+    {
+        buttonPressed = (GPIOA->IDR & GPIO_IDR_IDR8) == GPIO_IDR_IDR8;
+    }
+    ili3941_fillscreen(ILI9341_BLUE);
+}
+
+void initGameAssets()
+{
     Pipe_t pipe1 = { 
         240, 0,
         40, 100,
@@ -272,54 +326,12 @@ int main(void)
     };
     pipePairs[0] = pipePair;
     pipePairs[1] = pipePair2;
-    
-    Bitmap_t stone_floor = {
-        0, 0,
-        0, 0,
-        16, 16,
-        2,
-        0, 0,
-        gImage_stone_floor,
-        BMP_RGB565_8
-    };
-    
-    Bitmap_t box = {
-        30, 120,
-        0, 0,
-        8, 8,
-        4,
-        0, 0,
-        gImage_box,
-        BMP_RGB565_16
-    };
-    
-    Entity_t player = {
-        30, 120,
-        0, 0,
-        &box
-    };
-    
-    /*
-    // draw map
-    for (int row = 0; row < 7; ++row)
-    {
-        for (int col = 0; col < 10; ++col)
-        {
-            uint8_t tile = map[10*row + col];
-            if (tile == 0x00)
-            {
-                draw_static_bitmap(&stone_floor, 32*col, 32*row, 2);
-            }
-            else if (tile == 0x0B)
-            {
-                draw_static_bitmap(&box, 32*col, 32*row, 4);
-            }
-        }
-    }
-    */
-    //ili9341_fill_rect(0, 0, 100, 100, ILI9341_GREEN);
-    
-    while (1)
+}
+
+void gameLoop()
+{
+    int isGameOver = 0;
+    while (!isGameOver) // main game loop
     {
         uint8_t buttonPressed = (GPIOA->IDR & GPIO_IDR_IDR8) == GPIO_IDR_IDR8;
         player.yPos += 2;
@@ -333,6 +345,7 @@ int main(void)
             player.bitmap = &stone_floor;
         }
         
+        // check screen boundaries
         if (player.yPos <= 0)
         {
             player.yPos = 0;
@@ -341,7 +354,16 @@ int main(void)
         {
             player.yPos = player.yPos - ((player.yPos+player.bitmap->height*player.bitmap->scale) - LCD_HEIGHT);
         }
-        ili9341_draw_bitmap(&player);
+        
+        // collision detection with pipes
+        if (player.xPos + player.bitmap->scale*player.bitmap->width > pipePairs[0].upper.xPos)
+        {
+            ili9341_fill_rect(player.xPos, player.yPos, player.bitmap->width*player.bitmap->scale, player.bitmap->height*player.bitmap->scale, ILI9341_RED);
+        }
+        else
+        {
+            ili9341_draw_bitmap(&player);
+        }
         
         for (int i = 0; i < PIPE_PAIR_COUNT; ++i)
         {
@@ -387,6 +409,49 @@ int main(void)
     }
 }
 
+int main(void)
+{
+    
+    HAL_Init();
+    
+    /* Configure the system clock */
+    SystemClock_Config();
+    
+    /* Initialize all configured peripherals */
+    MX_GPIO_Init();
+    //ADC1_init();
+    lcdInit();
+    
+    ili3941_fillscreen(ILI9341_BLUE);
+    
+    /*
+    // draw map
+    for (int row = 0; row < 7; ++row)
+    {
+        for (int col = 0; col < 10; ++col)
+        {
+            uint8_t tile = map[10*row + col];
+            if (tile == 0x00)
+            {
+                draw_static_bitmap(&stone_floor, 32*col, 32*row, 2);
+            }
+            else if (tile == 0x0B)
+            {
+                draw_static_bitmap(&box, 32*col, 32*row, 4);
+            }
+        }
+    }
+    */
+    //ili9341_fill_rect(0, 0, 100, 100, ILI9341_GREEN);
+    while (1)
+    {
+        showTitleScreen();
+        initGameAssets();
+        gameLoop();
+        showScoreScreen();
+    }
+}
+
 /* bitmap width, height MUST be a multiple of 8 pixels!!! */
 void ili9341_draw_bitmap(Entity_t * entity)
 {
@@ -403,32 +468,32 @@ void ili9341_draw_bitmap(Entity_t * entity)
     /*
     if (yPos <= 0)
     {
-        yPos = 0;
+    yPos = 0;
     }
     else if (yPos+height > LCD_HEIGHT)
     {
-        yPos = yPos - ((yPos+height) - LCD_HEIGHT);
+    yPos = yPos - ((yPos+height) - LCD_HEIGHT);
     }
     // dirt buffer window last frame
     int16_t dbX = xPosOld/8;
     int16_t dbY = 40*yPosOld;
     for (int16_t i=0; i<height*scale; ++i) // bitmap 8px high -> go through 8 rows
     {
-        uint8_t bitPos = xPosOld % 8; // bitpos in this column
-        uint8_t *dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX] );
-        int16_t bitsLeft = width*scale;
-        int16_t byteColumns = (scale*width/8)+1;
-        for (int16_t column = 0; column < byteColumns; ++column)
-        {
-            dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+column] );
-            for (int y = bitPos; (y < 8) && (bitsLeft > 0); ++y)
-            {
-                *dirtBufferByte |= (0x80 >> y);
-                bitsLeft--;
-                //ili9341_draw_pixel(xPos+column*8 + y, yPos + i, ILI9341_RED);
-            }
-            bitPos = 0; // TODO(Michael): This only makes sense after first loop! Fix it (some day)!
-        }
+    uint8_t bitPos = xPosOld % 8; // bitpos in this column
+    uint8_t *dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX] );
+    int16_t bitsLeft = width*scale;
+    int16_t byteColumns = (scale*width/8)+1;
+    for (int16_t column = 0; column < byteColumns; ++column)
+    {
+    dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+column] );
+    for (int y = bitPos; (y < 8) && (bitsLeft > 0); ++y)
+    {
+    *dirtBufferByte |= (0x80 >> y);
+    bitsLeft--;
+    //ili9341_draw_pixel(xPos+column*8 + y, yPos + i, ILI9341_RED);
+    }
+    bitPos = 0; // TODO(Michael): This only makes sense after first loop! Fix it (some day)!
+    }
     }
     
     // dirt buffer window new frame
@@ -436,50 +501,49 @@ void ili9341_draw_bitmap(Entity_t * entity)
     int16_t dbYnew = 40*yPos;
     for (int16_t i=0; i<height*scale; ++i) // bitmap 8px high -> go through 8 rows
     {
-        uint8_t bitPos = xPos % 8; // bitpos in this column
-        uint8_t *dirtBufferByte = &( dirty_buffer[dbYnew + i*40 + dbXnew] );
-        int16_t bitsLeft = width*scale;
-        int16_t byteColumns = (scale*width/8)+1;
-        for (int16_t column = 0; column < byteColumns; ++column)
-        {
-            dirtBufferByte = &( dirty_buffer[dbYnew + i*40 + dbXnew+column] );
-            for (int y = bitPos; (y < 8) && (bitsLeft > 0); ++y)
-            {
-                *dirtBufferByte &= ~(0x80 >> y);
-                bitsLeft--;
-                //ili9341_draw_pixel(xPos+column*8 + y, yPos + i, ILI9341_GREEN);
-            }
-            bitPos = 0;
-        }
+    uint8_t bitPos = xPos % 8; // bitpos in this column
+    uint8_t *dirtBufferByte = &( dirty_buffer[dbYnew + i*40 + dbXnew] );
+    int16_t bitsLeft = width*scale;
+    int16_t byteColumns = (scale*width/8)+1;
+    for (int16_t column = 0; column < byteColumns; ++column)
+    {
+    dirtBufferByte = &( dirty_buffer[dbYnew + i*40 + dbXnew+column] );
+    for (int y = bitPos; (y < 8) && (bitsLeft > 0); ++y)
+    {
+    *dirtBufferByte &= ~(0x80 >> y);
+    bitsLeft--;
+    //ili9341_draw_pixel(xPos+column*8 + y, yPos + i, ILI9341_GREEN);
+    }
+    bitPos = 0;
+    }
     }
     
     // cleanup: clear the dirt buffer from remaining old frame and draw background color
     for (int i=0; i<height*scale; ++i) // bitmap 8px high -> go through 8 rows
     {
-        uint8_t bitPos = xPosOld % 8; // bitpos in this column
-        uint8_t *dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX] );
-        int16_t bitsLeft = width*scale;
-        uint8_t xOffset = 0;
-        int16_t byteColumns = (scale*width/8)+1;
-        for (int16_t column = 0; column < byteColumns; ++column)
-        {
-            dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+column] );
-            for (int y = bitPos; (y < 8) && (bitsLeft > 0); ++y)
-            {
-                uint8_t dbMask = (0x80 >> y);
-                if ( (*dirtBufferByte & dbMask) == dbMask )
-                {
-                    *dirtBufferByte &= ~dbMask;
-                    ili9341_draw_pixel(xPosOld + xOffset, yPosOld + i, ILI9341_BLUE);
-                }
-                bitsLeft--;
-                xOffset++;
-            }
-            bitPos = 0;
-        }
+    uint8_t bitPos = xPosOld % 8; // bitpos in this column
+    uint8_t *dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX] );
+    int16_t bitsLeft = width*scale;
+    uint8_t xOffset = 0;
+    int16_t byteColumns = (scale*width/8)+1;
+    for (int16_t column = 0; column < byteColumns; ++column)
+    {
+    dirtBufferByte = &( dirty_buffer[dbY + i*40 + dbX+column] );
+    for (int y = bitPos; (y < 8) && (bitsLeft > 0); ++y)
+    {
+    uint8_t dbMask = (0x80 >> y);
+    if ( (*dirtBufferByte & dbMask) == dbMask )
+    {
+    *dirtBufferByte &= ~dbMask;
+    ili9341_draw_pixel(xPosOld + xOffset, yPosOld + i, ILI9341_BLUE);
+    }
+    bitsLeft--;
+    xOffset++;
+    }
+    bitPos = 0;
+    }
     }
     */
-    // draw to device
     if (yPos > yPosOld)
     {
         int16_t clearHeight = (yPos-yPosOld);
@@ -496,8 +560,9 @@ void ili9341_draw_bitmap(Entity_t * entity)
         entity->yPosOld = yPos;
         return;	//OUT OF BOUNDS!
     }
-    ili9341_set_window(xPos, yPos, width*scale-1, height*scale-1);
     
+    // draw to device
+    ili9341_set_window(xPos, yPos, width*scale-1, height*scale-1);
     GPIOA->ODR &= ~GPIO_ODR_ODR2;
     switch (config)
     {
@@ -1024,7 +1089,7 @@ void assert_failed(uint8_t *file, uint32_t line)
 { 
     /* USER CODE BEGIN 6 */
     /* User can add his own implementation to report the file name and line number,
-       tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+    tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
     /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
