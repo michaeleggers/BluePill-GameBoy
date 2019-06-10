@@ -342,7 +342,7 @@ void gameLoop()
         }
         else
         {
-            player.bitmap = &stone_floor;
+            player.bitmap = &box;
         }
         
         // check screen boundaries
@@ -356,14 +356,20 @@ void gameLoop()
         }
         
         // collision detection with pipes
-        if (player.xPos + player.bitmap->scale*player.bitmap->width > pipePairs[0].upper.xPos)
+        if ( (player.xPos + player.bitmap->scale*player.bitmap->width > pipePairs[0].upper.xPos &&
+              player.xPos + player.bitmap->scale*player.bitmap->width < pipePairs[0].upper.xPos + 40) ||
+            (player.xPos > pipePairs[0].upper.xPos &&
+             player.xPos < pipePairs[0].upper.xPos + 40) ) // pipe width is 40 pixels
         {
-            ili9341_fill_rect(player.xPos, player.yPos, player.bitmap->width*player.bitmap->scale, player.bitmap->height*player.bitmap->scale, ILI9341_RED);
+            // check if player hits upper or lower pipe
+            if (player.yPos < pipePairs[0].upper.height ||
+                player.yPos + player.bitmap->scale*player.bitmap->height > pipePairs[0].lower.yPos) // COLLISION!
+            {
+                player.bitmap = &stone_floor;
+                //ili9341_fill_rect(player.xPos, player.yPos, player.bitmap->width*player.bitmap->scale, player.bitmap->height*player.bitmap->scale, ILI9341_RED);
+            }
         }
-        else
-        {
-            ili9341_draw_bitmap(&player);
-        }
+        ili9341_draw_bitmap(&player);
         
         for (int i = 0; i < PIPE_PAIR_COUNT; ++i)
         {
