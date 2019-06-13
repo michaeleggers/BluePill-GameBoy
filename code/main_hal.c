@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "ili9341.h"
+#include "font.h"
 
 static const uint8_t font[] = {
     // 0
@@ -183,10 +184,15 @@ typedef struct Pipepair_t
 
 typedef struct Entity_t
 {
-    int16_t xPos, yPos;
-    int16_t xPosOld, yPosOld;
+    float xPos, yPos;
+    float xPosOld, yPosOld;
     Bitmap_t *bitmap;
 } Entity_t;
+
+typedef struct Pixelpos_t
+{
+    int16_t x, y;
+} Pixelpos_t;
 
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
@@ -205,6 +211,7 @@ void showTitleScreen();
 void showScoreScreen();
 void initGameAssets();
 void gameLoop();
+void lcdPrint(int16_t x, int16_t y, char const * string, uint8_t length, uint8_t scale, uint16_t colorFG, uint16_t colorBG);
 
 static inline uint8_t SPI1_write(uint8_t data)
 {
@@ -233,13 +240,14 @@ static inline void SPI1_writeCmd(uint8_t cmd)
 	GPIOA->ODR |= GPIO_ODR_ODR2;
 }
 
+// globals
 #define PIPE_PAIR_COUNT 1
 Pipepair_t pipePairs[PIPE_PAIR_COUNT];
 Bitmap_t stone_floor = {
     0, 0,
     //0, 0,
     16, 16,
-    2,
+    1,
     //0, 0,
     gImage_stone_floor,
     BMP_RGB565_8
@@ -273,13 +281,21 @@ Bitmap_t scoreScreenBmp = {
 
 Entity_t player = {
     30, 120,
-    0, 0,
+    30, 120,
     &box
 };
 
+#define AIRBUBBLE_COUNT 5
+Pixelpos_t gAirBubbles[AIRBUBBLE_COUNT];
+
+static uint16_t gScore;
+static uint8_t gUiUpdateFlag;
+
 void showTitleScreen()
 {
-    draw_static_bitmap(&titleScreenBmp, 0, 0, 10);
+    //draw_static_bitmap(&titleScreenBmp, 0, 0, 10);
+    ili3941_fillscreen(ILI9341_BLUE);
+    lcdPrint(0, 0, "press to start", 14, 2, ILI9341_WHITE, ILI9341_BLUE);
     uint8_t buttonPressed = 0;
     while ( !buttonPressed )
     {
@@ -290,7 +306,13 @@ void showTitleScreen()
 
 void showScoreScreen()
 {
-    draw_static_bitmap(&scoreScreenBmp, 0, 0, 10);
+    ili3941_fillscreen(ILI9341_BLUE);
+    lcdPrint(0, 0, "Score", 5, 4, ILI9341_WHITE, ILI9341_BLUE);
+    char score[64];
+    itoa(gScore, score, 10);
+    lcdPrint(0, 4*8+8, score, 1, 4, ILI9341_WHITE, ILI9341_BLUE);
+    //draw_static_bitmap(&scoreScreenBmp, 0, 0, 10);
+    HAL_Delay(500);
     uint8_t buttonPressed = 0;
     while ( !buttonPressed )
     {
@@ -299,56 +321,61 @@ void showScoreScreen()
     ili3941_fillscreen(ILI9341_BLUE);
 }
 
+#define PIPE_WIDTH 40
 void initGameAssets()
 {
     Pipe_t pipe1 = { 
-        240, 0,
-        40, 100,
-        320
+        LCD_WIDTH, 16, // upper UI element is 16 pixels high
+        PIPE_WIDTH, 100-16,
+        LCD_WIDTH
     };
-    
     Pipe_t pipe2 = { 
-        240, 170,
-        40, 150,
-        320
+        LCD_WIDTH, 210,
+        PIPE_WIDTH, 120,
+        LCD_WIDTH
     };
-    Pipe_t pipe3 = pipe1;
-    pipe3.xPos += 200;
-    Pipe_t pipe4 = pipe2;
-    pipe4.xPos += 200;
     Pipepair_t pipePair = {
         pipe1,
         pipe2,
     };
-    Pipepair_t pipePair2 = {
-        pipe3,
-        pipe4
-    };
     pipePairs[0] = pipePair;
-    pipePairs[1] = pipePair2;
+    for (int i = 0; i < AIRBUBBLE_COUNT; ++i)
+    {
+        gAirBubbles[i].x = ((float)rand()/(float)RAND_MAX) * LCD_WIDTH;
+        gAirBubbles[i].y = 16 + ((float)rand()/(float)RAND_MAX) * LCD_HEIGHT;
+    }
+    gScore = 0;
+    gUiUpdateFlag = 1;
 }
 
 void gameLoop()
 {
-    int isGameOver = 0;
+    ili9341_fill_rect(0, 0, LCD_WIDTH, 16, ILI9341_BLACK);
+    lcdPrint(0, 0, "SCORE", 5, 2, ILI9341_WHITE, ILI9341_BLACK);
+    float vertSpeed = 0;
+    float fallingConstant = 0.2f;
+    float jumpConstant = -3;
+    volatile int isGameOver = 0;
     while (!isGameOver) // main game loop
     {
         uint8_t buttonPressed = (GPIOA->IDR & GPIO_IDR_IDR8) == GPIO_IDR_IDR8;
-        player.yPos += 2;
         if (buttonPressed)
         {
-            player.yPos -= 5;
+            //player.yPos -= 5;
+            vertSpeed = jumpConstant;
             player.bitmap = &box;
         }
         else
         {
             player.bitmap = &box;
         }
+        player.yPos += vertSpeed;
+        vertSpeed += fallingConstant;
         
         // check screen boundaries
-        if (player.yPos <= 0)
+        if (player.yPos <= 16) // UI height is 16 pixels
         {
-            player.yPos = 0;
+            player.yPos = 16;
         }
         else if (player.yPos+player.bitmap->height*player.bitmap->scale > LCD_HEIGHT)
         {
@@ -357,19 +384,29 @@ void gameLoop()
         
         // collision detection with pipes
         if ( (player.xPos + player.bitmap->scale*player.bitmap->width > pipePairs[0].upper.xPos &&
-              player.xPos + player.bitmap->scale*player.bitmap->width < pipePairs[0].upper.xPos + 40) ||
+              player.xPos + player.bitmap->scale*player.bitmap->width < pipePairs[0].upper.xPos + PIPE_WIDTH) ||
             (player.xPos > pipePairs[0].upper.xPos &&
-             player.xPos < pipePairs[0].upper.xPos + 40) ) // pipe width is 40 pixels
+             player.xPos < pipePairs[0].upper.xPos + PIPE_WIDTH) ) // pipe width is 40 pixels
         {
             // check if player hits upper or lower pipe
-            if (player.yPos < pipePairs[0].upper.height ||
-                player.yPos + player.bitmap->scale*player.bitmap->height > pipePairs[0].lower.yPos) // COLLISION!
+            if ( (player.yPos < pipePairs[0].upper.height+pipePairs[0].upper.yPos) ||
+                (player.yPos + player.bitmap->scale*player.bitmap->height > pipePairs[0].lower.yPos) ) // COLLISION!
             {
                 player.bitmap = &stone_floor;
-                //ili9341_fill_rect(player.xPos, player.yPos, player.bitmap->width*player.bitmap->scale, player.bitmap->height*player.bitmap->scale, ILI9341_RED);
+                isGameOver = 1;
             }
         }
         ili9341_draw_bitmap(&player);
+        
+        // if player made it through, update score ui
+        if ( gUiUpdateFlag && (player.xPos > pipePairs[0].upper.xPos + PIPE_WIDTH) )
+        {
+            gUiUpdateFlag = 0; // already updated
+            gScore += 1;
+            char score[64];
+            itoa(gScore, score, 10);
+            lcdPrint(5*2*8+8, 0, score, 1, 2, ILI9341_WHITE, ILI9341_BLACK);
+        }
         
         for (int i = 0; i < PIPE_PAIR_COUNT; ++i)
         {
@@ -390,26 +427,31 @@ void gameLoop()
             int16_t widthClearLower = lowerPipe->xPosOld - lowerPipe->xPos;
             ili9341_fill_rect(xClearLower, lowerPipe->yPos, widthClearLower, lowerPipe->height, ILI9341_BLUE);
             ili9341_fill_rect(lowerPipe->xPos, lowerPipe->yPos, lowerPipe->width, lowerPipe->height, ILI9341_GREEN);
-            if ( (upperPipe->xPos+upperPipe->width) <= 0 )
+            if ( (upperPipe->xPos+upperPipe->width) <= 0 ) // pipes moved left OOS
             {
+                gUiUpdateFlag = 1;
                 ili9341_fill_rect(0, upperPipe->yPos, 1, upperPipe->height, ILI9341_BLUE);
-                upperPipe->xPos = 240;
+                upperPipe->xPos = LCD_WIDTH;
                 ili9341_fill_rect(0, lowerPipe->yPos, 1, lowerPipe->height, ILI9341_BLUE);
-                lowerPipe->xPos = 240;
+                lowerPipe->xPos = LCD_WIDTH;
                 // create new hole
-                int16_t holeY = ((float)rand()/(float)RAND_MAX) * 200; // max reach of upper pipe before whole starts
+                int16_t holeY = ((float)rand()/(float)RAND_MAX) * 190; // max reach of upper pipe before whole starts
                 upperPipe->height = holeY;
-                lowerPipe->yPos = holeY+90;
-                lowerPipe->height = 320 - lowerPipe->yPos;
+                lowerPipe->yPos = holeY+130;
+                lowerPipe->height = LCD_HEIGHT - lowerPipe->yPos;
             }
         }
         
-        //box.yPos++;
-        // read joystick.
-        // NOTE(Michael): IDRx can only be read in word mode (32bits)
-        //ADC1->CR2 |= ADC_CR2_SWSTART;
-        //while ( ADC1->SR & ADC_SR_EOC ) {}
-        //int16_t conversion = ADC1->DR;
+        // draw Air Bubbles
+        for (int i = 0; i < AIRBUBBLE_COUNT; ++i)
+        {
+            int16_t *x = &(gAirBubbles[i].x);
+            int16_t *y = &(gAirBubbles[i].y);
+            if (*x+3 <= 0) *x = LCD_WIDTH;
+            ili9341_fill_rect(*x, *y, 3, 3, ILI9341_BLUE);
+            *x -= 5;
+            ili9341_fill_rect(*x, *y, 3, 3, ILI9341_WHITE);
+        }
         
         //HAL_Delay(1);
     }
@@ -428,7 +470,7 @@ int main(void)
     //ADC1_init();
     lcdInit();
     
-    ili3941_fillscreen(ILI9341_BLUE);
+    
     
     /*
     // draw map
@@ -667,8 +709,76 @@ void draw_static_bitmap(Bitmap_t * bitmap, int16_t xPos, int16_t yPos, int16_t s
     GPIOA->ODR |= GPIO_ODR_ODR2;
 }
 
-#define FONT_SIZE  5
-#define FONT_SCALE 5
+// ########
+
+#define FONT_SIZE   6
+#define FONT_SCALE  5
+#define FONT_WIDTH  6
+#define FONT_HEIGHT 8
+void lcdPrint(int16_t x, int16_t y, char const * string, uint8_t length, uint8_t scale, uint16_t colorFG, uint16_t colorBG)
+{
+    if((x+FONT_WIDTH*scale > LCD_WIDTH) || (y+FONT_HEIGHT*scale > LCD_HEIGHT)) return;	//OUT OF BOUNDS!
+    
+    int16_t posOffset = 0;
+    while (posOffset < length)
+    {
+        int16_t fontIndex = string[posOffset] - ' ';
+        for (int colScale = 0; colScale < scale; ++colScale)
+        {
+            for (int col = 0; col < FONT_WIDTH; ++col)
+            {
+                uint8_t fontColumn = fontWithHeart[fontIndex][col];
+                for (int row = 0; row < FONT_HEIGHT; ++row)
+                {
+                    uint8_t fontPixel = (fontColumn & (0x01 << row));
+                    uint16_t pixelColor = colorBG;
+                    if (fontPixel)
+                    {
+                        pixelColor = colorFG;
+                    }
+                    for (int i = 0; i < scale; ++i)
+                    {
+                        //ili9341_draw_pixel(x + posOffset*FONT_WIDTH + col, y+row*scale+i, pixelColor);
+                        ili9341_draw_pixel(x + posOffset*FONT_WIDTH*scale + scale*col+colScale, y+row*scale+i, pixelColor);
+                    }
+                }
+            }
+        }
+        posOffset++;
+    }
+    
+    /* Backup
+    if((x+FONT_WIDTH*scale > LCD_WIDTH) || (y+FONT_HEIGHT*scale > LCD_HEIGHT)) return;	//OUT OF BOUNDS!
+    
+    int16_t posOffset = 0;
+    while (posOffset < length)
+    {
+        int16_t fontIndex = string[posOffset] - ' ';
+        
+        for (int col = 0; col < FONT_WIDTH; ++col)
+        {
+            uint8_t fontColumn = fontWithHeart[fontIndex][col];
+            for (int row = 0; row < FONT_HEIGHT; ++row) // each column is a byte (so Font-height = 8)
+            {
+                uint8_t fontPixel = (fontColumn & (0x01 << row));
+                for (int i = 0; i < scale; ++i)
+                {
+                    if (fontPixel)
+                    {
+                        ili9341_draw_pixel(x+posOffset*FONT_WIDTH+col, y+row*i, color);
+                    }
+                    else
+                    {
+                        ili9341_draw_pixel(x+posOffset*FONT_WIDTH+col, y+row*i, 0x00);
+                    }
+                }
+            }
+        }
+        posOffset++;
+    }
+    */
+}
+
 void ili9341_print(int16_t x, int16_t y, char const * string, uint8_t length)
 {
     if((x+FONT_SIZE*FONT_SCALE > LCD_WIDTH) || (y+FONT_SIZE*FONT_SCALE > LCD_HEIGHT)) return;	//OUT OF BOUNDS!
